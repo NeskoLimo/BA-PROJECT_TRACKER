@@ -1,6 +1,13 @@
 // src/app/components/dashboard/dashboard.component.ts
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
+
+@Component({
+  ...
+  imports: [CommonModule, RouterLink],
+  ...
+})
 
 @Component({
   selector: 'app-dashboard',
@@ -99,7 +106,7 @@ import { CommonModule } from '@angular/common';
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">Recent Projects</h2>
-          <a href="/projects" class="card-link">View all →</a>
+          <a routerLink="/projects" class="card-link">View all →</a>
         </div>
         <table class="projects-table">
           <thead>
