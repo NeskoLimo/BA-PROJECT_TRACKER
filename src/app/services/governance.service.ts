@@ -1,59 +1,37 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 
-// Unified interfaces to prevent build errors
-export interface MasterRegion { name: string; currency: string; projectCount: number; status: 'Active' | 'Paused'; }
-export interface MasterPM { name: string; rate: number; department: string; projectsActive: number; }
-export interface ProjectStats { assigned: number; unassigned: number; total: number; }
-export interface RepositoryDocument { 
-  id: string; 
-  name: string; 
-  category: 'Charter' | 'SLA' | 'Sign-off' | 'Report'; 
-  owner: string; 
-  status: 'Pending' | 'Approved' | 'Finalized'; 
-  downloadUrl: string;
-}
+export interface MasterRegion { name: string; projects: number; budget: string; health: string; }
+export interface MasterPM { name: string; rate: number; department: string; status: string; }
+export interface Project { id: string; name: string; category: string; owner: string; phase: string; status: string; }
+export interface RepositoryDoc { id: string; name: string; category: string; status: 'Pending' | 'Approved'; url: string; }
 
 @Injectable({ providedIn: 'root' })
 export class GovernanceService {
-  // Data for Reports
+  public projects: Project[] = [
+    { id: 'PRJ-101', name: 'Cloud Migration', category: 'IT', owner: 'Alice M.', phase: 'Execution', status: 'Active' },
+    { id: 'PRJ-102', name: 'Network Upgrade', category: 'Infrastructure', owner: 'James K.', phase: 'Planning', status: 'Active' }
+  ];
+
+  public repositoryDocs: RepositoryDoc[] = [
+    { id: 'DOC-01', name: 'Project Charter_v1', category: 'Charter', status: 'Approved', url: '#' },
+    { id: 'DOC-02', name: 'SLA_Final_Draft', category: 'SLA', status: 'Pending', url: '#' }
+  ];
+
   public masterRegions: MasterRegion[] = [
-    { name: 'Kenya', currency: 'KES', projectCount: 12, status: 'Active' },
-    { name: 'Uganda', currency: 'UGX', projectCount: 8, status: 'Active' }
+    { name: 'East Africa', projects: 12, budget: 'KES 4.2M', health: 'Stable' },
+    { name: 'West Africa', projects: 5, budget: 'NGN 800M', health: 'At Risk' }
   ];
 
-  // Data for Dashboard/Settings
   public masterPMs: MasterPM[] = [
-    { name: 'Alice M.', rate: 92, department: 'Infrastructure', projectsActive: 5 },
-    { name: 'James K.', rate: 85, department: 'Software', projectsActive: 3 }
+    { name: 'Alice M.', rate: 94, department: 'IT', status: 'Active' },
+    { name: 'James K.', rate: 82, department: 'Ops', status: 'Active' }
   ];
 
-  // Data for Repository (Monitoring Sign-offs)
-  public repositoryDocs: RepositoryDocument[] = [
-    { id: 'DOC-101', name: 'Charter_v1', category: 'Charter', owner: 'Alice M.', status: 'Approved', downloadUrl: '#' },
-    { id: 'DOC-102', name: 'SLA_Final', category: 'SLA', owner: 'James K.', status: 'Pending', downloadUrl: '#' }
-  ];
+  public auditLog = [{ time: new Date(), action: 'SYSTEM_RESTORE', user: 'Admin', details: 'Full reconstruction completed' }];
 
-  // Data for Settings Log
-  public auditLog: any[] = [{ timestamp: new Date(), user: 'NeskoLimo', action: 'SYNC', details: 'System Restored' }];
-
-  // Streams for real-time updates
   private pmSource = new BehaviorSubject<MasterPM[]>(this.masterPMs);
   masterPMs$ = this.pmSource.asObservable();
 
-  private statsSource = new BehaviorSubject<ProjectStats>({ assigned: 20, unassigned: 4, total: 24 });
-  projectStats$ = this.statsSource.asObservable();
-
-  constructor(private http: HttpClient) {}
-
-  isAdmin() { return true; } // Simplified for access
-
-  updatePMRate(name: string, newRate: number) {
-    const pm = this.masterPMs.find(p => p.name === name);
-    if (pm) {
-      pm.rate = newRate;
-      this.pmSource.next([...this.masterPMs]);
-    }
-  }
+  isAdmin() { return true; }
 }
