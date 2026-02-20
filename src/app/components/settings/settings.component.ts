@@ -8,107 +8,136 @@ import { GovernanceService, MasterRegion } from '../../services/governance.servi
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="settings-layout">
-      <aside class="settings-nav">
-        <div class="nav-item" [class.active]="activeTab === 'profile'" (click)="activeTab = 'profile'">
-          <span class="icon">👤</span> Profile
+    <div class="settings-container fade-in">
+      <aside class="settings-sidebar">
+        <div class="user-profile">
+          <div class="avatar-circle">{{ gov.currentUser.name.substring(0,2) }}</div>
+          <div class="user-details">
+            <span class="u-name">{{ gov.currentUser.name }}</span>
+            <span class="u-role">{{ gov.currentUser.role }}</span>
+          </div>
         </div>
-        <div class="nav-item" [class.active]="activeTab === 'preferences'" (click)="activeTab = 'preferences'">
-          <span class="icon">⚙️</span> Preferences
-        </div>
-        <div class="nav-item admin-tab" 
-             *ngIf="gov.isAdmin()" 
-             [class.active]="activeTab === 'governance'" 
-             (click)="activeTab = 'governance'">
-          <span class="icon">🛡️</span> Master Governance
-        </div>
+
+        <nav class="nav-menu">
+          <button (click)="activeTab = 'profile'" [class.active]="activeTab === 'profile'">
+            <span class="icon">👤</span> Personal Profile
+          </button>
+          <button (click)="activeTab = 'support'" [class.active]="activeTab === 'support'">
+            <span class="icon">🛠️</span> Support Center
+          </button>
+          
+          <ng-container *ngIf="gov.isAdmin()">
+            <div class="nav-divider">GOVERNANCE</div>
+            <button (click)="activeTab = 'governance'" [class.active]="activeTab === 'governance'" class="admin-link">
+              <span class="icon">🛡️</span> Master Data
+            </button>
+            <button (click)="activeTab = 'audit'" [class.active]="activeTab === 'audit'" class="admin-link">
+              <span class="icon">📜</span> Audit Trail
+            </button>
+          </ng-container>
+        </nav>
       </aside>
 
       <main class="settings-content">
         
-        <section *ngIf="activeTab === 'profile'" class="animate-fade">
-          <div class="section-header">
-            <h2>Profile & Account</h2>
-            <p>Update your personal information and account details.</p>
+        <section *ngIf="activeTab === 'profile'" class="slide-up">
+          <div class="content-header">
+            <h2>Account Settings</h2>
+            <p>Identity management and localization preferences.</p>
           </div>
+          <div class="card shadow-sm">
+            <div class="form-grid">
+              <div class="field"><label>Username</label><input type="text" [value]="gov.currentUser.name" readonly></div>
+              <div class="field"><label>Primary Role</label><input type="text" [value]="gov.currentUser.role" readonly></div>
+            </div>
+          </div>
+        </section>
 
-          <div class="profile-card">
-            <div class="avatar-row">
-              <div class="avatar-circle">NL</div>
-              <div class="user-meta">
-                <h3>NeskoLimo</h3>
-                <span class="role-badge">{{ gov.currentUser.role }}</span>
+        <section *ngIf="activeTab === 'support'" class="slide-up">
+          <div class="content-header">
+            <h2>Support Center</h2>
+            <p>Request data corrections or technical assistance from Administrators.</p>
+          </div>
+          
+          <div class="support-split">
+            <div class="card" *ngIf="!gov.isAdmin()">
+              <h3>New Support Request</h3>
+              <div class="field">
+                <label>Issue Category</label>
+                <select [(ngModel)]="ticketForm.category">
+                  <option>Access Denied</option>
+                  <option>Data Correction</option>
+                  <option>Feature Request</option>
+                </select>
               </div>
-              <button class="btn-outline">Change Photo</button>
+              <div class="field">
+                <label>Description</label>
+                <textarea [(ngModel)]="ticketForm.message" placeholder="Describe the registry change required..."></textarea>
+              </div>
+              <button class="btn-primary" (click)="submitSupport()">Submit Ticket</button>
             </div>
 
-            <div class="form-grid">
-              <div class="field">
-                <label>First Name</label>
-                <input type="text" value="Nesko">
-              </div>
-              <div class="field">
-                <label>Last Name</label>
-                <input type="text" value="Limo">
-              </div>
-              <div class="field">
-                <label>Email Address</label>
-                <input type="email" value="nesko@baprojecttracker.com">
-              </div>
-              <div class="field">
-                <label>Phone Number</label>
-                <input type="text" value="+254 700 000 000">
+            <div class="admin-inbox" *ngIf="gov.isAdmin()">
+              <h3>Pending Tickets ({{ gov.supportTickets.length }})</h3>
+              <div class="ticket-item" *ngFor="let t of gov.supportTickets">
+                <div class="t-top"><strong>{{ t.user }}</strong> <span class="badge">{{ t.category }}</span></div>
+                <p>{{ t.message }}</p>
+                <small>{{ t.timestamp | date:'shortTime' }}</small>
               </div>
             </div>
           </div>
         </section>
 
-        <section *ngIf="activeTab === 'governance'" class="animate-fade">
-          <div class="section-header">
-            <h2>Master Data Governance</h2>
-            <p>Admin Control: Manage global regions, currencies, and data integrity.</p>
+        <section *ngIf="activeTab === 'governance' && gov.isAdmin()" class="slide-up">
+          <div class="content-header">
+            <h2>Global Registry Governance</h2>
+            <p>Manage high-level country and currency data with dependency protection.</p>
           </div>
-
-          <div class="gov-card">
-            <div class="gov-actions">
-              <button class="btn-primary" (click)="showAddModal = true">+ Register New Country</button>
-            </div>
-
-            <table class="master-table">
+          <div class="card no-padding overflow-hidden">
+            <table class="gov-table">
               <thead>
-                <tr>
-                  <th>ISO Code</th>
-                  <th>Country & Currency</th>
-                  <th>Status</th>
-                  <th>Integrity Check</th>
-                  <th>Hard Governance</th>
-                </tr>
+                <tr><th>Code</th><th>Region</th><th>Currency</th><th>Status</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 <tr *ngFor="let r of gov.masterRegions" [class.inactive-row]="r.status === 'Inactive'">
                   <td class="mono">{{ r.code }}</td>
-                  <td>
-                    <strong>{{ r.name }}</strong><br>
-                    <small>{{ r.currency }} Registry</small>
-                  </td>
+                  <td><strong>{{ r.name }}</strong></td>
+                  <td>{{ r.currency }}</td>
                   <td>
                     <span class="status-pill" [attr.data-status]="r.status">{{ r.status }}</span>
                   </td>
                   <td>
-                    <span class="dependency-count" [class.has-deps]="r.projectCount > 0">
-                      {{ r.projectCount }} Active Projects
-                    </span>
+                    <div class="action-row">
+                      <button class="btn-sm" (click)="toggleReg(r)">Toggle Status</button>
+                      <button class="btn-sm danger" [disabled]="r.projectCount > 0" (click)="deleteReg(r.code)">Hard Delete</button>
+                    </div>
                   </td>
-                  <td class="btn-group">
-                    <button class="btn-sm" (click)="toggleStatus(r)">
-                      {{ r.status === 'Active' ? 'Deactivate' : 'Activate' }}
-                    </button>
-                    <button class="btn-sm btn-danger" 
-                            [disabled]="r.projectCount > 0"
-                            (click)="hardPurge(r.code)">
-                      Hard Delete
-                    </button>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section *ngIf="activeTab === 'audit' && gov.isAdmin()" class="slide-up">
+          <div class="content-header">
+            <h2>System Audit Trail</h2>
+            <p>Immutable history of Administrator actions and registry changes.</p>
+          </div>
+          <div class="card no-padding overflow-hidden">
+            <table class="audit-table">
+              <thead>
+                <tr><th>Timestamp</th><th>Admin</th><th>Action</th><th>Target Entity</th><th>Details</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let log of gov.auditLog">
+                  <td class="time-col">
+                    <span class="d">{{ log.timestamp | date:'dd MMM' }}</span>
+                    <span class="t">{{ log.timestamp | date:'HH:mm:ss' }}</span>
                   </td>
+                  <td><strong>{{ log.user }}</strong></td>
+                  <td><span class="action-tag" [attr.data-a]="log.action">{{ log.action }}</span></td>
+                  <td>{{ log.target }}</td>
+                  <td class="details-col"><em>{{ log.details }}</em></td>
                 </tr>
               </tbody>
             </table>
@@ -117,95 +146,86 @@ import { GovernanceService, MasterRegion } from '../../services/governance.servi
 
       </main>
     </div>
-
-    <div class="modal" *ngIf="showAddModal">
-       <div class="modal-content">
-          <h3>Register Global Region</h3>
-          <input [(ngModel)]="tempRegion.name" placeholder="Country Name">
-          <input [(ngModel)]="tempRegion.code" placeholder="ISO Code (e.g. KE)">
-          <input [(ngModel)]="tempRegion.currency" placeholder="Currency (e.g. KES)">
-          <div class="modal-btns">
-            <button (click)="showAddModal = false">Cancel</button>
-            <button class="btn-primary" (click)="confirmAdd()">Save to Master Registry</button>
-          </div>
-       </div>
-    </div>
   `,
   styles: [`
-    .settings-layout { display: grid; grid-template-columns: 280px 1fr; min-height: 80vh; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
+    .settings-container { display: flex; height: 92vh; background: #fcfcfd; font-family: 'Inter', sans-serif; }
     
-    /* Navigation Sidebar */
-    .settings-nav { background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 20px; }
-    .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; color: #64748b; font-weight: 500; margin-bottom: 4px; transition: 0.2s; }
-    .nav-item:hover { background: #f1f5f9; color: #1e293b; }
-    .nav-item.active { background: #1e293b; color: white; }
-    .admin-tab { border-top: 1px solid #e2e8f0; margin-top: 20px; padding-top: 20px; color: #b91c1c; }
+    /* SIDEBAR STYLES */
+    .settings-sidebar { width: 300px; background: #0f172a; color: white; padding: 24px; display: flex; flex-direction: column; }
+    .user-profile { display: flex; align-items: center; gap: 15px; margin-bottom: 40px; }
+    .avatar-circle { width: 44px; height: 44px; background: #3b82f6; border-radius: 50%; display: grid; place-items: center; font-weight: 700; }
+    .u-name { display: block; font-weight: 600; font-size: 15px; }
+    .u-role { font-size: 11px; color: #94a3b8; }
 
-    /* Content Area */
-    .settings-content { padding: 40px; }
-    .section-header h2 { font-family: 'Georgia', serif; font-size: 24px; color: #1e293b; margin: 0; }
-    .section-header p { color: #64748b; font-size: 14px; margin: 8px 0 24px 0; }
+    .nav-menu { display: flex; flex-direction: column; gap: 6px; }
+    .nav-menu button { border: none; background: none; color: #94a3b8; text-align: left; padding: 12px 16px; cursor: pointer; border-radius: 8px; font-size: 14px; display: flex; align-items: center; gap: 10px; transition: 0.2s; }
+    .nav-menu button:hover { background: #1e293b; color: white; }
+    .nav-menu button.active { background: #3b82f6; color: white; }
+    .nav-divider { font-size: 10px; font-weight: 800; color: #475569; margin: 20px 0 10px 16px; letter-spacing: 1px; }
+    .admin-link { color: #fca5a5 !important; }
 
-    /* Cards & Forms */
-    .profile-card, .gov-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; }
-    .avatar-row { display: flex; align-items: center; gap: 20px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #f1f5f9; }
-    .avatar-circle { width: 64px; height: 64px; background: #1e293b; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; }
-    .role-badge { font-size: 11px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; color: #475569; }
-
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-    .field label { display: block; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
-    .field input { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; }
-
-    /* Master Table Logic */
-    .master-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    .master-table th { text-align: left; font-size: 11px; color: #64748b; text-transform: uppercase; padding: 12px; border-bottom: 1px solid #e2e8f0; }
-    .master-table td { padding: 16px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
-    .mono { font-family: monospace; font-weight: bold; background: #f1f5f9; padding: 2px 4px; }
+    /* CONTENT STYLES */
+    .settings-content { flex: 1; padding: 40px; overflow-y: auto; }
+    .content-header h2 { font-family: 'Georgia', serif; font-size: 26px; color: #0f172a; margin: 0; }
+    .content-header p { color: #64748b; font-size: 14px; margin: 8px 0 32px 0; }
     
+    .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; }
+    .no-padding { padding: 0; }
+    .overflow-hidden { overflow: hidden; }
+
+    /* TABLES */
+    .gov-table, .audit-table { width: 100%; border-collapse: collapse; }
+    .gov-table th, .audit-table th { background: #f8fafc; text-align: left; padding: 14px 20px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+    .gov-table td, .audit-table td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+
+    /* AUDIT SPECIFIC */
+    .time-col { line-height: 1.2; width: 120px; }
+    .time-col .d { display: block; font-weight: 700; }
+    .time-col .t { font-size: 11px; color: #94a3b8; }
+    .action-tag { padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; }
+    .action-tag[data-a="STATUS_CHANGE"] { background: #fef9c3; color: #854d0e; }
+    .action-tag[data-a="DELETE"] { background: #fee2e2; color: #991b1b; }
+    .details-col { color: #64748b; font-style: italic; }
+
+    /* UTILS */
     .status-pill { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
     .status-pill[data-status="Active"] { background: #dcfce7; color: #166534; }
     .status-pill[data-status="Inactive"] { background: #f1f5f9; color: #64748b; }
+    .btn-sm { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; cursor: pointer; background: white; }
+    .btn-sm.danger:hover { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+    .btn-primary { background: #3b82f6; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; }
 
-    .dependency-count { font-size: 12px; color: #94a3b8; }
-    .dependency-count.has-deps { color: #b91c1c; font-weight: 600; }
-
-    .btn-sm { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; cursor: pointer; background: white; margin-right: 5px; }
-    .btn-danger:hover { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
-    .btn-primary { background: #1e293b; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
-    
-    .inactive-row { opacity: 0.6; }
-    .animate-fade { animation: fadeIn 0.3s ease; }
+    .fade-in { animation: fadeIn 0.4s ease-out; }
+    .slide-up { animation: slideUp 0.3s ease-out; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-    /* Modal Styling */
-    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
-    .modal-content { background: white; padding: 30px; border-radius: 12px; width: 400px; display: flex; flex-direction: column; gap: 15px; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   `]
 })
 export class SettingsComponent implements OnInit {
   activeTab = 'profile';
-  showAddModal = false;
-  tempRegion: MasterRegion = { code: '', name: '', currency: '', status: 'Active', projectCount: 0 };
+  ticketForm = { category: 'Access Denied', message: '' };
 
-  constructor(public gov: GovernanceService) {}
+  constructor(public gov: GovernanceService) {} // Injection token properly typed
 
   ngOnInit() {}
 
-  toggleStatus(region: MasterRegion) {
-    const result = this.gov.toggleRegionStatus(region);
-    if (!result.success) alert(result.message);
+  toggleReg(r: MasterRegion) {
+    const success = this.gov.toggleStatus(r);
+    if (!success) alert('Cannot deactivate: Region has active project dependencies.');
   }
 
-  confirmAdd() {
-    this.gov.addRegion({ ...this.tempRegion });
-    this.showAddModal = false;
-    this.tempRegion = { code: '', name: '', currency: '', status: 'Active', projectCount: 0 };
+  deleteReg(code: string) {
+    if (confirm('PERMANENT ACTION: Purge this region from the Global Registry?')) {
+      const success = this.gov.hardDeleteRegion(code);
+      if (!success) alert('Deletion blocked by data integrity rules.');
+    }
   }
 
-  hardPurge(code: string) {
-    if (confirm('CRITICAL: This permanently removes this region from all global systems. Proceed?')) {
-      const res = this.gov.hardDeleteRegion(code);
-      if (!res.success) alert(res.message);
+  submitSupport() {
+    if (this.ticketForm.message) {
+      this.gov.submitTicket(this.ticketForm.category, this.ticketForm.message);
+      this.ticketForm.message = '';
+      alert('Ticket submitted to Administrator.');
     }
   }
 }
