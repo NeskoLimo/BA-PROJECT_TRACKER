@@ -1,12 +1,14 @@
 import { Injectable, signal, computed } from '@angular/core';
 
-// ─── Models ───────────────────────────────────────────────────────────────────
+// ─── Models ────────────────────────────────────────────────────────────────────
 
-export type ActionType = 'SYSTEM' | 'UPLOAD' | 'DELETE' | 'EDIT' | 'LOGIN';
-export type UserRole   = 'HOD' | 'ADMIN' | 'VIEWER' | 'EDITOR';
+export type ActionType    = 'SYSTEM' | 'UPLOAD' | 'DELETE' | 'EDIT' | 'LOGIN' | 'CREATE' | 'UPDATE';
+export type UserRole      = 'HOD' | 'ADMIN' | 'VIEWER' | 'EDITOR';
+export type ProjectPhase  = 'Initiation' | 'Planning' | 'Execution' | 'Closure';
+export type ProjectStatus = 'Active' | 'Critical' | 'Planning' | 'Closure';
 
 export interface AuditEntry {
-  id:      string;
+  id?:     string;   // optional — legacy .unshift({}) calls omit id
   time:    Date;
   action:  ActionType;
   user:    string;
@@ -19,9 +21,36 @@ export interface CurrentUser {
 }
 
 export interface PolicyConfig {
-  maxFileSizeMb:   number;
-  allowedFormats:  string[];
-  phaseGateLock:   boolean;
+  maxFileSizeMb:    number;
+  allowedFormats:   string[];
+  phaseGateLock:    boolean;
+}
+
+export interface Project {
+  id:               string;
+  name:             string;
+  owner:            string;
+  location:         string;
+  startDate:        string;
+  projectedEndDate: string;
+  actualEndDate?:   string;
+  phase:            ProjectPhase;
+  status:           ProjectStatus;
+  budget:           number;
+  hasAttachment:    boolean;
+  attachmentUrl?:   string;
+}
+
+export interface Region {
+  name:         string;
+  currency:     string;
+  projectCount: number;
+  status:       'Active' | 'Inactive';
+}
+
+export interface ValidationResult {
+  valid:  boolean;
+  error?: string;
 }
 
 // ─── Permission matrix ────────────────────────────────────────────────────────
@@ -38,9 +67,11 @@ const ROLE_PERMISSIONS: Record<UserRole, { edit: boolean; delete: boolean; admin
 @Injectable({ providedIn: 'root' })
 export class GovernanceService {
 
-  // ── Public state (signals) ─────────────────────────────────────────────────
+  // ── Signal state (private — mutated only through service methods) ──────────
 
-  readonly currentUser = signal<CurrentUser>({ name: 'Dr. Amara Osei', role: 'HOD' });
+  private readonly _currentUser = signal<CurrentUser>({ name: 'Dr. Amara Osei', role: 'HOD' });
+  private readonly _auditLog    = signal<AuditEntry[]>(this.#seedLog());
+  private readonly _projects    = signal<Project[]>(this.#seedProjects());
 
   readonly policy = signal<PolicyConfig>({
     maxFileSizeMb:  25,
@@ -48,16 +79,14 @@ export class GovernanceService {
     phaseGateLock:  true,
   });
 
-  readonly auditLog = signal<AuditEntry[]>(this.#seedLog());
+  // ── Derived permissions (signals) ─────────────────────────────────────────
 
-  // ── Derived permissions ────────────────────────────────────────────────────
-
-  readonly canEdit   = computed(() => ROLE_PERMISSIONS[this.currentUser().role].edit);
-  readonly canDelete = computed(() => ROLE_PERMISSIONS[this.currentUser().role].delete);
-  readonly isAdmin   = computed(() => ROLE_PERMISSIONS[this.currentUser().role].admin);
+  readonly canEdit   = computed(() => ROLE_PERMISSIONS[this._currentUser().role].edit);
+  readonly canDelete = computed(() => ROLE_PERMISSIONS[this._currentUser().role].delete);
+  readonly isAdmin   = computed(() => ROLE_PERMISSIONS[this._currentUser().role].admin);
 
   readonly userInitials = computed(() =>
-    this.currentUser().name
+    this._currentUser().name
       .split(' ')
       .map(w => w[0])
       .slice(0, 3)
@@ -65,37 +94,118 @@ export class GovernanceService {
       .toUpperCase()
   );
 
+  // ── Plain-object accessors (for settings.component signal-aware template) ──
+
+  /** Use in templates that call gov.currentUser() — settings component */
+  readonly currentUser = this._currentUser.asReadonly();
+
+  // ── Plain-array accessors (legacy *ngFor / .filter() / .find() compat) ─────
+  //
+  // projects.component, repository.component and reports.component all access
+  // gov.projects, gov.auditLog and gov.currentUser as plain values. These
+  // getters expose the current signal snapshot as a plain array/object so
+  // those templates and methods require zero changes.
+
+  get projects(): Project[] {
+    return this._projects();
+  }
+
+  /**
+   * Returns the current audit log as a plain array.
+   * Legacy components that call gov.auditLog.unshift({ ... }) will hit the
+   * custom unshift below, which routes the mutation back through the signal.
+   */
+  get auditLog(): AuditEntry[] {
+    const arr = [...this._auditLog()];
+
+    // Proxy unshift so repository.component mutations stay reactive
+    (arr as any).unshift = (...items: AuditEntry[]) => {
+      const stamped = items.map(e => ({ id: crypto.randomUUID(), ...e }));
+      this._auditLog.update(log => [...stamped, ...log]);
+      return this._auditLog().length;
+    };
+
+    return arr;
+  }
+
+  get masterRegions(): Region[] {
+    const projectList = this._projects();
+    return [
+      { name: 'East Africa',     currency: 'KES', status: 'Active',
+        projectCount: projectList.filter(p => /kenya|nairobi|mombasa/i.test(p.location)).length || 4 },
+      { name: 'West Africa',     currency: 'GHS', status: 'Active',   projectCount: projectList.filter(p => /ghana|accra/i.test(p.location)).length || 3 },
+      { name: 'Southern Africa', currency: 'ZAR', status: 'Active',   projectCount: projectList.filter(p => /south africa|cape town/i.test(p.location)).length || 5 },
+      { name: 'North Africa',    currency: 'EGP', status: 'Inactive', projectCount: 2 },
+    ];
+  }
+
+  // ── Project mutations ──────────────────────────────────────────────────────
+
+  updateProject(updated: Project): void {
+    this._projects.update(list =>
+      list.map(p => p.id === updated.id ? { ...updated } : p)
+    );
+    this.logAction('EDIT', `Updated project: ${updated.name}`);
+  }
+
+  deleteProject(id: string): void {
+    const p = this._projects().find(p => p.id === id);
+    this._projects.update(list => list.filter(p => p.id !== id));
+    if (p) this.logAction('DELETE', `Deleted project: ${p.name} (${id})`);
+  }
+
+  // ── Business logic ─────────────────────────────────────────────────────────
+
+  getCalculatedProgress(p: Project): number {
+    const start   = new Date(p.startDate).getTime();
+    const end     = new Date(p.projectedEndDate).getTime();
+    const now     = p.actualEndDate ? new Date(p.actualEndDate).getTime() : Date.now();
+    const total   = end - start;
+    if (total <= 0) return 100;
+    return Math.min(100, Math.max(0, Math.round(((now - start) / total) * 100)));
+  }
+
+  validateAttachment(file: File): ValidationResult {
+    const maxBytes = this.policy().maxFileSizeMb * 1024 * 1024;
+    const allowed  = this.policy().allowedFormats.map(f => `.${f.toLowerCase()}`);
+    const ext      = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!allowed.includes(ext))
+      return { valid: false, error: `File type not allowed. Use: ${this.policy().allowedFormats.join(', ')}` };
+    if (file.size > maxBytes)
+      return { valid: false, error: `File exceeds ${this.policy().maxFileSizeMb} MB limit.` };
+    return { valid: true };
+  }
+
+  logUpload(projectName: string, fileName: string): void {
+    this.logAction('UPLOAD', `Attached "${fileName}" to project: ${projectName}`);
+  }
+
   // ── Audit helpers ──────────────────────────────────────────────────────────
 
   logAction(action: ActionType, details: string): void {
-    const entry: AuditEntry = {
+    this._auditLog.update(log => [{
       id:      crypto.randomUUID(),
       time:    new Date(),
       action,
-      user:    this.currentUser().name,
+      user:    this._currentUser().name,
       details,
-    };
-    this.auditLog.update(log => [entry, ...log]);
+    }, ...log]);
   }
 
   exportAsCsv(): void {
     const headers = ['Timestamp', 'Action', 'Operator', 'Details'];
-    const rows = this.auditLog().map(e => [
-      e.time.toISOString(),
-      e.action,
+    const rows    = this._auditLog().map(e => [
+      e.time.toISOString(), e.action,
       `"${e.user}"`,
       `"${e.details.replace(/"/g, '""')}"`,
     ]);
-
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-
-    const anchor      = document.createElement('a');
-    anchor.href       = url;
-    anchor.download   = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    const csv     = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob    = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url     = URL.createObjectURL(blob);
+    const anchor  = document.createElement('a');
+    anchor.href     = url;
+    anchor.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
     anchor.click();
-
     URL.revokeObjectURL(url);
     this.logAction('SYSTEM', 'Audit log exported as CSV');
   }
@@ -103,13 +213,42 @@ export class GovernanceService {
   // ── Seed data ──────────────────────────────────────────────────────────────
 
   #seedLog(): AuditEntry[] {
-    const base = Date.now();
+    const b = Date.now();
     return [
-      { id: '1', time: new Date(base - 120_000), action: 'LOGIN',  user: 'Dr. Amara Osei',   details: 'Session started from 196.201.xx.xx'      },
-      { id: '2', time: new Date(base -  90_000), action: 'UPLOAD', user: 'Dr. Amara Osei',   details: 'Uploaded Q3-Budget-Final.pdf (18.2 MB)'   },
-      { id: '3', time: new Date(base -  60_000), action: 'EDIT',   user: 'Kwame Mensah',      details: 'Modified workstream: Procurement Reform'  },
-      { id: '4', time: new Date(base -  30_000), action: 'DELETE', user: 'Dr. Amara Osei',   details: 'Removed registry entry #REG-0042'         },
-      { id: '5', time: new Date(base -  10_000), action: 'SYSTEM', user: 'System',            details: 'Phase-gate lock applied to WS-07'         },
+      { id: '1', time: new Date(b - 120_000), action: 'LOGIN',  user: 'Dr. Amara Osei', details: 'Session started from 196.201.xx.xx'          },
+      { id: '2', time: new Date(b -  90_000), action: 'UPLOAD', user: 'Dr. Amara Osei', details: 'Uploaded Q3-Budget-Final.pdf (18.2 MB)'       },
+      { id: '3', time: new Date(b -  60_000), action: 'EDIT',   user: 'Kwame Mensah',   details: 'Modified workstream: Procurement Reform'      },
+      { id: '4', time: new Date(b -  30_000), action: 'DELETE', user: 'Dr. Amara Osei', details: 'Removed registry entry #REG-0042'             },
+      { id: '5', time: new Date(b -  10_000), action: 'SYSTEM', user: 'System',          details: 'Phase-gate lock applied to WS-07'             },
+    ];
+  }
+
+  #seedProjects(): Project[] {
+    return [
+      {
+        id: 'PRJ-101', name: 'ERP System Migration',  owner: 'Alice M.',  location: 'Nairobi, Kenya',
+        startDate: '2025-01-15', projectedEndDate: '2026-06-30',
+        phase: 'Execution', status: 'Active',    budget: 1_200_000,
+        hasAttachment: true,  attachmentUrl: 'erp-scope-v2.pdf',
+      },
+      {
+        id: 'PRJ-102', name: 'Warehouse Expansion',   owner: 'James K.',  location: 'Mombasa, Kenya',
+        startDate: '2025-03-01', projectedEndDate: '2026-03-31',
+        phase: 'Planning',  status: 'Critical',  budget: 850_000,
+        hasAttachment: false,
+      },
+      {
+        id: 'PRJ-103', name: 'Procurement Reform',    owner: 'Kwame M.',  location: 'Accra, Ghana',
+        startDate: '2025-06-01', projectedEndDate: '2026-12-31',
+        phase: 'Initiation', status: 'Planning', budget: 420_000,
+        hasAttachment: false,
+      },
+      {
+        id: 'PRJ-104', name: 'Fleet Electrification', owner: 'Nadia T.',  location: 'Cape Town, SA',
+        startDate: '2024-09-01', projectedEndDate: '2025-12-31', actualEndDate: '2025-11-15',
+        phase: 'Closure',  status: 'Closure',   budget: 2_100_000,
+        hasAttachment: true,  attachmentUrl: 'fleet-scope-final.docx',
+      },
     ];
   }
 }
