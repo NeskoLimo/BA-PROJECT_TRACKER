@@ -587,6 +587,8 @@ export class ReportsComponent {
     { id: 12, name: 'Cloud Migration Phase 2', pm: 'James K.', status: 'At Risk', priority: 'Critical', type: 'IT', budget: 980000, spent: 910000, progress: 65, startDate: 'Oct 1, 2025', endDate: 'Mar 31, 2026' },
   ];
 
+  get totalRecords() { return this.filteredProjects.length; }
+  get pagedProjects() { return this.filteredProjects.slice((this.currentPage - 1) * this.pageSize, this.currentPage * this.pageSize); }
   get completedCount() { return this.filteredProjects.filter(p => p.status === 'Completed').length; }
   get atRiskCount() { return this.filteredProjects.filter(p => p.status === 'At Risk').length; }
   get totalBudget() { return this.filteredProjects.reduce((s, p) => s + p.budget, 0); }
