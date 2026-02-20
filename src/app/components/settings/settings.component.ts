@@ -1,235 +1,211 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
-interface CountryEntry { code: string; name: string; currency: string; symbol: string; }
+import { GovernanceService, MasterRegion } from '../../services/governance.service';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="settings-page">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">Management & Support</h1>
-          <p class="page-subtitle">Configure global master data and personal account preferences</p>
+    <div class="settings-layout">
+      <aside class="settings-nav">
+        <div class="nav-item" [class.active]="activeTab === 'profile'" (click)="activeTab = 'profile'">
+          <span class="icon">👤</span> Profile
         </div>
-      </div>
-
-      <div class="settings-layout">
-        <div class="settings-menu">
-          <div class="menu-category">Global Governance</div>
-          <button class="menu-item" *ngFor="let tab of governanceTabs"
-            [class.active]="activeTab === tab.id" (click)="activeTab = tab.id">
-            <span class="menu-icon">{{ tab.icon }}</span>
-            <span class="menu-label">{{ tab.label }}</span>
-          </button>
-
-          <div class="menu-category mt-4">Account Support</div>
-          <button class="menu-item" *ngFor="let tab of supportTabs"
-            [class.active]="activeTab === tab.id" (click)="activeTab = tab.id">
-            <span class="menu-icon">{{ tab.icon }}</span>
-            <span class="menu-label">{{ tab.label }}</span>
-          </button>
+        <div class="nav-item" [class.active]="activeTab === 'preferences'" (click)="activeTab = 'preferences'">
+          <span class="icon">⚙️</span> Preferences
         </div>
+        <div class="nav-item admin-tab" 
+             *ngIf="gov.isAdmin()" 
+             [class.active]="activeTab === 'governance'" 
+             (click)="activeTab = 'governance'">
+          <span class="icon">🛡️</span> Master Governance
+        </div>
+      </aside>
 
-        <div class="settings-content">
-          
-          <div *ngIf="activeTab === 'master-data'" class="animate-fade">
-            <div class="section-header">
-              <h2 class="section-title">Master Data Sets</h2>
-              <p class="section-desc">Define the global entities that drive project tracking and reporting.</p>
-            </div>
-            
-            <div class="form-card">
-              <div class="card-header-flex">
-                <h3 class="card-subtitle-title">Country & Currency Registry</h3>
-                <button class="btn-primary btn-sm" (click)="addCountry()">+ Add Region</button>
+      <main class="settings-content">
+        
+        <section *ngIf="activeTab === 'profile'" class="animate-fade">
+          <div class="section-header">
+            <h2>Profile & Account</h2>
+            <p>Update your personal information and account details.</p>
+          </div>
+
+          <div class="profile-card">
+            <div class="avatar-row">
+              <div class="avatar-circle">NL</div>
+              <div class="user-meta">
+                <h3>NeskoLimo</h3>
+                <span class="role-badge">{{ gov.currentUser.role }}</span>
               </div>
-              <table class="master-table">
-                <thead>
-                  <tr>
-                    <th>ISO Code</th>
-                    <th>Country Name</th>
-                    <th>Currency</th>
-                    <th>Symbol</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let c of countries; let i = index">
-                    <td><input type="text" [(ngModel)]="c.code" class="table-input" placeholder="KE"></td>
-                    <td><input type="text" [(ngModel)]="c.name" class="table-input" placeholder="Kenya"></td>
-                    <td><input type="text" [(ngModel)]="c.currency" class="table-input" placeholder="KES"></td>
-                    <td><input type="text" [(ngModel)]="c.symbol" class="table-input" placeholder="KSh"></td>
-                    <td><button class="btn-icon-del" (click)="removeCountry(i)">✕</button></td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="form-actions">
-                <button class="btn-primary" (click)="save('Master Data')">Commit Global Registry</button>
+              <button class="btn-outline">Change Photo</button>
+            </div>
+
+            <div class="form-grid">
+              <div class="field">
+                <label>First Name</label>
+                <input type="text" value="Nesko">
+              </div>
+              <div class="field">
+                <label>Last Name</label>
+                <input type="text" value="Limo">
+              </div>
+              <div class="field">
+                <label>Email Address</label>
+                <input type="email" value="nesko@baprojecttracker.com">
+              </div>
+              <div class="field">
+                <label>Phone Number</label>
+                <input type="text" value="+254 700 000 000">
               </div>
             </div>
           </div>
+        </section>
 
-          <div *ngIf="activeTab === 'profile'" class="animate-fade">
-            <div class="section-header">
-              <h2 class="section-title">Profile & Email</h2>
-              <p class="section-desc">Manage your identity and primary contact details.</p>
-            </div>
-            <div class="form-card">
-              <div class="avatar-row">
-                <div class="avatar">NL</div>
-                <div>
-                  <div class="avatar-name">{{profile.firstName}} {{profile.lastName}}</div>
-                  <div class="avatar-role">{{profile.title}}</div>
-                </div>
-              </div>
-              <div class="form-grid mt-4">
-                <div class="form-group">
-                  <label>First Name</label>
-                  <input type="text" [(ngModel)]="profile.firstName" />
-                </div>
-                <div class="form-group">
-                  <label>Email Address</label>
-                  <input type="email" [(ngModel)]="profile.email" />
-                </div>
-              </div>
-              <div class="form-actions">
-                <button class="btn-primary" (click)="save('Profile')">Update Profile</button>
-              </div>
-            </div>
-
-            <div class="form-card mt-4">
-              <h3 class="card-subtitle-title">Security & Password</h3>
-              <div class="form-grid">
-                <div class="form-group full-width">
-                  <label>New Password</label>
-                  <input type="password" placeholder="••••••••" />
-                </div>
-              </div>
-              <div class="form-actions">
-                <button class="btn-primary" (click)="save('Password')">Change Password</button>
-              </div>
-            </div>
+        <section *ngIf="activeTab === 'governance'" class="animate-fade">
+          <div class="section-header">
+            <h2>Master Data Governance</h2>
+            <p>Admin Control: Manage global regions, currencies, and data integrity.</p>
           </div>
 
-          <div *ngIf="activeTab === 'notifications'" class="animate-fade">
-             <div class="section-header">
-              <h2 class="section-title">Notification Preferences</h2>
-              <p class="section-desc">Choose which nudges and alerts you receive.</p>
+          <div class="gov-card">
+            <div class="gov-actions">
+              <button class="btn-primary" (click)="showAddModal = true">+ Register New Country</button>
             </div>
-            <div class="form-card">
-               <div class="toggle-row" *ngFor="let n of emailNotifs">
-                <div class="toggle-info">
-                  <div class="toggle-label">{{ n.label }}</div>
-                  <div class="toggle-desc">{{ n.desc }}</div>
-                </div>
-                <div class="toggle-switch" [class.on]="n.enabled" (click)="n.enabled = !n.enabled">
-                  <div class="toggle-knob"></div>
-                </div>
-              </div>
-              <div class="form-actions">
-                <button class="btn-primary" (click)="save('Notifications')">Save Preferences</button>
-              </div>
-            </div>
+
+            <table class="master-table">
+              <thead>
+                <tr>
+                  <th>ISO Code</th>
+                  <th>Country & Currency</th>
+                  <th>Status</th>
+                  <th>Integrity Check</th>
+                  <th>Hard Governance</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let r of gov.masterRegions" [class.inactive-row]="r.status === 'Inactive'">
+                  <td class="mono">{{ r.code }}</td>
+                  <td>
+                    <strong>{{ r.name }}</strong><br>
+                    <small>{{ r.currency }} Registry</small>
+                  </td>
+                  <td>
+                    <span class="status-pill" [attr.data-status]="r.status">{{ r.status }}</span>
+                  </td>
+                  <td>
+                    <span class="dependency-count" [class.has-deps]="r.projectCount > 0">
+                      {{ r.projectCount }} Active Projects
+                    </span>
+                  </td>
+                  <td class="btn-group">
+                    <button class="btn-sm" (click)="toggleStatus(r)">
+                      {{ r.status === 'Active' ? 'Deactivate' : 'Activate' }}
+                    </button>
+                    <button class="btn-sm btn-danger" 
+                            [disabled]="r.projectCount > 0"
+                            (click)="hardPurge(r.code)">
+                      Hard Delete
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+        </section>
 
-        </div>
-      </div>
+      </main>
+    </div>
 
-      <div class="toast" *ngIf="toastVisible">✅ {{ toastMessage }}</div>
+    <div class="modal" *ngIf="showAddModal">
+       <div class="modal-content">
+          <h3>Register Global Region</h3>
+          <input [(ngModel)]="tempRegion.name" placeholder="Country Name">
+          <input [(ngModel)]="tempRegion.code" placeholder="ISO Code (e.g. KE)">
+          <input [(ngModel)]="tempRegion.currency" placeholder="Currency (e.g. KES)">
+          <div class="modal-btns">
+            <button (click)="showAddModal = false">Cancel</button>
+            <button class="btn-primary" (click)="confirmAdd()">Save to Master Registry</button>
+          </div>
+       </div>
     </div>
   `,
   styles: [`
-    /* Retention of existing styles with additions for Master Data */
-    .settings-page { padding: 24px; background: #f8fafc; min-height: 100vh; }
-    .menu-category { 
-      font-size: 10px; font-weight: 800; color: #a0aec0; 
-      text-transform: uppercase; letter-spacing: 1px; padding: 10px 12px 5px;
-    }
-    .mt-4 { margin-top: 20px; }
-    .card-header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .settings-layout { display: grid; grid-template-columns: 280px 1fr; min-height: 80vh; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
     
-    .master-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    .master-table th { text-align: left; font-size: 11px; color: #718096; padding: 10px; border-bottom: 1px solid #edf2f7; }
-    .master-table td { padding: 8px; border-bottom: 1px solid #f7f9fc; }
-    
-    .table-input { 
-      width: 100%; border: 1px solid #e8ecf0; padding: 6px 10px; 
-      border-radius: 4px; font-size: 13px; outline: none; 
-    }
-    .table-input:focus { border-color: #1a2332; }
-    
-    .btn-icon-del { background: none; border: none; color: #cbd5e0; cursor: pointer; font-size: 16px; }
-    .btn-icon-del:hover { color: #e53e3e; }
-    .btn-sm { padding: 6px 12px; font-size: 11px; }
+    /* Navigation Sidebar */
+    .settings-nav { background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 20px; }
+    .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; color: #64748b; font-weight: 500; margin-bottom: 4px; transition: 0.2s; }
+    .nav-item:hover { background: #f1f5f9; color: #1e293b; }
+    .nav-item.active { background: #1e293b; color: white; }
+    .admin-tab { border-top: 1px solid #e2e8f0; margin-top: 20px; padding-top: 20px; color: #b91c1c; }
 
+    /* Content Area */
+    .settings-content { padding: 40px; }
+    .section-header h2 { font-family: 'Georgia', serif; font-size: 24px; color: #1e293b; margin: 0; }
+    .section-header p { color: #64748b; font-size: 14px; margin: 8px 0 24px 0; }
+
+    /* Cards & Forms */
+    .profile-card, .gov-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; }
+    .avatar-row { display: flex; align-items: center; gap: 20px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #f1f5f9; }
+    .avatar-circle { width: 64px; height: 64px; background: #1e293b; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; }
+    .role-badge { font-size: 11px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; color: #475569; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .field label { display: block; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+    .field input { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; }
+
+    /* Master Table Logic */
+    .master-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .master-table th { text-align: left; font-size: 11px; color: #64748b; text-transform: uppercase; padding: 12px; border-bottom: 1px solid #e2e8f0; }
+    .master-table td { padding: 16px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+    .mono { font-family: monospace; font-weight: bold; background: #f1f5f9; padding: 2px 4px; }
+    
+    .status-pill { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+    .status-pill[data-status="Active"] { background: #dcfce7; color: #166534; }
+    .status-pill[data-status="Inactive"] { background: #f1f5f9; color: #64748b; }
+
+    .dependency-count { font-size: 12px; color: #94a3b8; }
+    .dependency-count.has-deps { color: #b91c1c; font-weight: 600; }
+
+    .btn-sm { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; cursor: pointer; background: white; margin-right: 5px; }
+    .btn-danger:hover { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+    .btn-primary { background: #1e293b; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+    
+    .inactive-row { opacity: 0.6; }
     .animate-fade { animation: fadeIn 0.3s ease; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-    /* Import existing styles from previous block here... */
-    .settings-layout { display: grid; grid-template-columns: 240px 1fr; gap: 32px; }
-    .settings-menu { background: #fff; border: 1px solid #e8ecf0; border-radius: 12px; padding: 12px; height: fit-content; }
-    .menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; border: none; background: none; cursor: pointer; width: 100%; color: #4a5568; font-size: 13px; font-weight: 500; }
-    .menu-item.active { background: #1a2332; color: #fff; }
-    .form-card { background: #fff; border: 1px solid #e8ecf0; border-radius: 12px; padding: 24px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 20px;}
-    .section-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-    .btn-primary { background: #1a2332; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
-    .toggle-switch { width: 40px; height: 22px; border-radius: 11px; background: #cbd5e0; position: relative; cursor: pointer; transition: 0.2s; }
-    .toggle-switch.on { background: #1a2332; }
-    .toggle-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: white; transition: 0.2s; }
-    .toggle-switch.on .toggle-knob { left: 21px; }
-    .toast { position: fixed; bottom: 20px; right: 20px; background: #1a2332; color: #fff; padding: 12px 24px; border-radius: 8px; z-index: 1000; }
-    /* ... (rest of your base styles) */
+    /* Modal Styling */
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: white; padding: 30px; border-radius: 12px; width: 400px; display: flex; flex-direction: column; gap: 15px; }
   `]
 })
-export class SettingsComponent {
-  activeTab = 'master-data';
-  toastVisible = false;
-  toastMessage = '';
+export class SettingsComponent implements OnInit {
+  activeTab = 'profile';
+  showAddModal = false;
+  tempRegion: MasterRegion = { code: '', name: '', currency: '', status: 'Active', projectCount: 0 };
 
-  governanceTabs = [
-    { id: 'master-data', label: 'Master Data Sets', icon: '🌍' },
-    { id: 'roles', label: 'Roles & Permissions', icon: '🔐' },
-  ];
+  constructor(public gov: GovernanceService) {}
 
-  supportTabs = [
-    { id: 'profile', label: 'Profile & Email', icon: '👤' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'preferences', label: 'App Preferences', icon: '⚙️' },
-  ];
+  ngOnInit() {}
 
-  countries: CountryEntry[] = [
-    { code: 'KE', name: 'Kenya', currency: 'KES', symbol: 'KSh' },
-    { code: 'UG', name: 'Uganda', currency: 'UGX', symbol: 'USh' },
-    { code: 'US', name: 'United States', currency: 'USD', symbol: '$' }
-  ];
-
-  profile = {
-    firstName: 'Nesko',
-    lastName: 'Limo',
-    email: 'nesko@baprojecttracker.com',
-    title: 'Business Analyst Lead',
-  };
-
-  emailNotifs = [
-    { label: 'Project Updates', desc: 'Get notified when a project status changes', enabled: true },
-    { label: 'Deadline Reminders', desc: 'Receive reminders 3 days before project deadlines', enabled: true },
-  ];
-
-  addCountry() {
-    this.countries.push({ code: '', name: '', currency: '', symbol: '' });
+  toggleStatus(region: MasterRegion) {
+    const result = this.gov.toggleRegionStatus(region);
+    if (!result.success) alert(result.message);
   }
 
-  removeCountry(index: number) {
-    this.countries.splice(index, 1);
+  confirmAdd() {
+    this.gov.addRegion({ ...this.tempRegion });
+    this.showAddModal = false;
+    this.tempRegion = { code: '', name: '', currency: '', status: 'Active', projectCount: 0 };
   }
 
-  save(section: string) {
-    this.toastMessage = `${section} committed successfully`;
-    this.toastVisible = true;
-    setTimeout(() => this.toastVisible = false, 3000);
+  hardPurge(code: string) {
+    if (confirm('CRITICAL: This permanently removes this region from all global systems. Proceed?')) {
+      const res = this.gov.hardDeleteRegion(code);
+      if (!res.success) alert(res.message);
+    }
   }
 }
