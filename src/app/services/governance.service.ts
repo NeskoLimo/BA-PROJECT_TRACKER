@@ -1,19 +1,18 @@
 import { Injectable } from '@angular/core';
 
-export interface AuditEntry {
-  timestamp: Date;
-  user: string;
-  action: string;
-  target: string;
-  details: string;
-}
-
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root'
+})
 export class GovernanceService {
-  public auditLog: AuditEntry[] = [];
+  // Use 'public' so they are accessible in your Standalone templates
+  public auditLog: any[] = [];
   public currentUser = { name: 'NeskoLimo', role: 'Administrator' };
 
-  isAdmin() { return this.currentUser.role === 'Administrator'; }
+  constructor() {}
+
+  isAdmin(): boolean {
+    return this.currentUser.role === 'Administrator';
+  }
 
   logAction(action: string, target: string, details: string) {
     this.auditLog.unshift({
