@@ -4,15 +4,9 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 @Component({
-  ...
-  imports: [CommonModule, RouterLink],
-  ...
-})
-
-@Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   template: `
     <div class="dashboard">
 
@@ -125,7 +119,7 @@ import { RouterLink } from '@angular/router';
               <td><span class="type-badge">{{ p.type }}</span></td>
               <td>{{ p.pm }}</td>
               <td>
-                <span class="status-badge" [ngClass]="p.status.toLowerCase().replace(' ', '-')">
+                <span class="status-badge" [ngClass]="getStatusClass(p.status)">
                   {{ p.status }}
                 </span>
               </td>
@@ -144,273 +138,75 @@ import { RouterLink } from '@angular/router';
     </div>
   `,
   styles: [`
-    .dashboard {
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-      font-family: 'Georgia', serif;
-      color: #1a2332;
-    }
+    .dashboard { display: flex; flex-direction: column; gap: 24px; font-family: 'Georgia', serif; color: #1a2332; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .page-title { font-size: 26px; font-weight: 700; margin: 0 0 4px; color: #1a2332; }
+    .page-subtitle { font-size: 13px; color: #718096; margin: 0; font-family: sans-serif; }
+    .header-date { font-size: 13px; color: #718096; font-family: sans-serif; padding-top: 6px; }
 
-    /* Header */
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-    }
-    .page-title {
-      font-size: 26px;
-      font-weight: 700;
-      margin: 0 0 4px;
-      color: #1a2332;
-    }
-    .page-subtitle {
-      font-size: 13px;
-      color: #718096;
-      margin: 0;
-      font-family: sans-serif;
-    }
-    .header-date {
-      font-size: 13px;
-      color: #718096;
-      font-family: sans-serif;
-      padding-top: 6px;
-    }
-
-    /* Stat Cards */
-    .stat-cards {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-    }
-    .stat-card {
-      background: #fff;
-      border: 1px solid #e8ecf0;
-      border-radius: 10px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    .stat-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-    }
-    .stat-value {
-      font-size: 28px;
-      font-weight: 700;
-      color: #1a2332;
-      line-height: 1;
-    }
-    .stat-label {
-      font-size: 12px;
-      color: #718096;
-      font-family: sans-serif;
-      margin-top: 2px;
-    }
-    .stat-change {
-      font-size: 11px;
-      font-family: sans-serif;
-    }
+    .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .stat-card { background: #fff; border: 1px solid #e8ecf0; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .stat-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #1a2332; line-height: 1; }
+    .stat-label { font-size: 12px; color: #718096; font-family: sans-serif; margin-top: 2px; }
+    .stat-change { font-size: 11px; font-family: sans-serif; }
     .stat-change.positive { color: #38a169; }
     .stat-change.neutral { color: #a0aec0; }
 
-    /* Card */
-    .card {
-      background: #fff;
-      border: 1px solid #e8ecf0;
-      border-radius: 10px;
-      padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    .card-title {
-      font-size: 16px;
-      font-weight: 700;
-      margin: 0;
-      color: #1a2332;
-    }
-    .card-subtitle {
-      font-size: 12px;
-      color: #a0aec0;
-      font-family: sans-serif;
-    }
-    .card-link {
-      font-size: 13px;
-      color: #1a2332;
-      text-decoration: none;
-      font-family: sans-serif;
-      font-weight: 600;
-    }
+    .card { background: #fff; border: 1px solid #e8ecf0; border-radius: 10px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .card-title { font-size: 16px; font-weight: 700; margin: 0; color: #1a2332; }
+    .card-subtitle { font-size: 12px; color: #a0aec0; font-family: sans-serif; }
+    .card-link { font-size: 13px; color: #1a2332; text-decoration: none; font-family: sans-serif; font-weight: 600; }
     .card-link:hover { text-decoration: underline; }
 
-    /* Middle Row */
-    .middle-row {
-      display: grid;
-      grid-template-columns: 1.5fr 1fr;
-      gap: 16px;
-    }
+    .middle-row { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
 
-    /* Bar Chart */
-    .bar-chart {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .bar-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .bar-label {
-      width: 90px;
-      font-size: 13px;
-      color: #4a5568;
-      font-family: sans-serif;
-      flex-shrink: 0;
-    }
-    .bar-track {
-      flex: 1;
-      height: 10px;
-      background: #f0f4f8;
-      border-radius: 99px;
-      overflow: hidden;
-    }
-    .bar-fill {
-      height: 100%;
-      border-radius: 99px;
-      transition: width 0.6s ease;
-    }
-    .bar-value {
-      width: 36px;
-      font-size: 13px;
-      font-weight: 600;
-      color: #1a2332;
-      font-family: sans-serif;
-      text-align: right;
-    }
+    .bar-chart { display: flex; flex-direction: column; gap: 14px; }
+    .bar-row { display: flex; align-items: center; gap: 12px; }
+    .bar-label { width: 90px; font-size: 13px; color: #4a5568; font-family: sans-serif; flex-shrink: 0; }
+    .bar-track { flex: 1; height: 10px; background: #f0f4f8; border-radius: 99px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+    .bar-value { width: 36px; font-size: 13px; font-weight: 600; color: #1a2332; font-family: sans-serif; text-align: right; }
 
-    /* Deadlines */
-    .deadline-list {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .deadline-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .deadline-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
+    .deadline-list { display: flex; flex-direction: column; gap: 14px; }
+    .deadline-item { display: flex; align-items: center; gap: 12px; }
+    .deadline-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .deadline-info { flex: 1; }
-    .deadline-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: #1a2332;
-      font-family: sans-serif;
-    }
-    .deadline-meta {
-      font-size: 11px;
-      color: #a0aec0;
-      font-family: sans-serif;
-      margin-top: 2px;
-    }
-    .deadline-badge {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 99px;
-      font-family: sans-serif;
-    }
+    .deadline-name { font-size: 13px; font-weight: 600; color: #1a2332; font-family: sans-serif; }
+    .deadline-meta { font-size: 11px; color: #a0aec0; font-family: sans-serif; margin-top: 2px; }
+    .deadline-badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; font-family: sans-serif; }
 
-    /* Projects Table */
-    .projects-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-family: sans-serif;
-      font-size: 13px;
-    }
-    .projects-table th {
-      text-align: left;
-      padding: 10px 12px;
-      font-size: 11px;
-      font-weight: 700;
-      color: #a0aec0;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 1px solid #e8ecf0;
-    }
-    .projects-table td {
-      padding: 12px 12px;
-      border-bottom: 1px solid #f7f9fc;
-      color: #2d3748;
-      vertical-align: middle;
-    }
+    .projects-table { width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 13px; }
+    .projects-table th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 700; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e8ecf0; }
+    .projects-table td { padding: 12px; border-bottom: 1px solid #f7f9fc; color: #2d3748; vertical-align: middle; }
     .projects-table tr:last-child td { border-bottom: none; }
     .projects-table tr:hover td { background: #f7f9fc; }
     .project-name { font-weight: 600; color: #1a2332 !important; }
 
-    .type-badge {
-      background: #edf2f7;
-      color: #4a5568;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
-    }
+    .type-badge { background: #edf2f7; color: #4a5568; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .status-badge { padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+    .status-active { background: #e8fdf0; color: #38a169; }
+    .status-on-hold { background: #fdf8e8; color: #d69e2e; }
+    .status-completed { background: #e8f4fd; color: #3182ce; }
+    .status-at-risk { background: #fde8e8; color: #e53e3e; }
 
-    .status-badge {
-      padding: 3px 10px;
-      border-radius: 99px;
-      font-size: 11px;
-      font-weight: 700;
-    }
-    .status-badge.active { background: #e8fdf0; color: #38a169; }
-    .status-badge.on-hold { background: #fdf8e8; color: #d69e2e; }
-    .status-badge.completed { background: #e8f4fd; color: #3182ce; }
-    .status-badge.at-risk { background: #fde8e8; color: #e53e3e; }
-
-    .progress-bar {
-      width: 80px;
-      height: 6px;
-      background: #f0f4f8;
-      border-radius: 99px;
-      overflow: hidden;
-      display: inline-block;
-      vertical-align: middle;
-      margin-right: 6px;
-    }
-    .progress-fill {
-      height: 100%;
-      background: #1a2332;
-      border-radius: 99px;
-    }
-    .progress-label {
-      font-size: 12px;
-      color: #718096;
-      vertical-align: middle;
-    }
+    .progress-bar { width: 80px; height: 6px; background: #f0f4f8; border-radius: 99px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 6px; }
+    .progress-fill { height: 100%; background: #1a2332; border-radius: 99px; }
+    .progress-label { font-size: 12px; color: #718096; vertical-align: middle; }
     .due-date { color: #718096 !important; }
   `]
 })
 export class DashboardComponent {
   today = new Date();
+
+  getStatusClass(status: string): string {
+    const map: Record<string, string> = {
+      'Active': 'status-active', 'On Hold': 'status-on-hold',
+      'Completed': 'status-completed', 'At Risk': 'status-at-risk'
+    };
+    return map[status] || '';
+  }
 
   pmSuccessRates = [
     { name: 'Alice M.', rate: 92, color: '#38a169' },
