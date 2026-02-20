@@ -1,15 +1,26 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 
-/** * ARCHITECTURAL INTERFACES
- * Enriched with the required analytics fields: dates and attachments.
+/** * 🏛️ ARCHITECTURAL INTERFACES
+ * These must be exported for the components to "see" them.
  */
+
+// Fixes TS2305: Exporting MasterPM for the Dashboard
+export interface MasterPM { 
+  name: string; 
+  rate: number; 
+  department: string; 
+  activeProjects: number; 
+  lastDelivery: string; 
+}
+
+// Fixes NG9: Defining Project with 'owner' and enrichment fields
 export interface Project { 
   id: string; 
   name: string; 
   category: string; 
-  location: string;
-  owner: string; // Matches component expectation
+  location: string; 
+  owner: string; 
   status: 'Active' | 'Planning' | 'Critical' | 'Closure'; 
   budget: number; 
   spent: number; 
@@ -21,7 +32,8 @@ export interface Project {
   hasAttachment: boolean; 
 }
 
-export interface RepositoryDocument { // Fixed name for Export
+// Fixes TS2305: Exporting RepositoryDocument
+export interface RepositoryDocument { 
   id: string; 
   name: string; 
   category: string; 
@@ -32,23 +44,18 @@ export interface RepositoryDocument { // Fixed name for Export
   nextSignatory?: string; 
 }
 
-export interface MasterRegion { name: string; currency: string; projectCount: number; status: 'Active' | 'Paused'; }
+// Fixes NG9: Exporting MasterRegion for Reports
+export interface MasterRegion { 
+  name: string; 
+  currency: string; 
+  projectCount: number; 
+  status: 'Active' | 'Paused'; 
+}
 
 @Injectable({ providedIn: 'root' })
 export class GovernanceService {
-  // Fixes NG9: masterRegions
-  public masterRegions: MasterRegion[] = [
-    { name: 'Kenya', currency: 'KES', projectCount: 12, status: 'Active' },
-    { name: 'Uganda', currency: 'UGX', projectCount: 8, status: 'Active' }
-  ];
-
-  // Fixes NG9: repositoryDocs
-  public repositoryDocs: RepositoryDocument[] = [
-    { id: 'T-01', name: 'Risk Register Template', category: 'Template', owner: 'PMO', status: 'Finalized', downloadUrl: '#', isTemplate: true },
-    { id: 'S-01', name: 'Scope Sign-off: Phase 1', category: 'Project Doc', owner: 'Alice M.', status: 'Pending', downloadUrl: '#', isTemplate: false, nextSignatory: 'HOD Finance' }
-  ];
-
-  // Enriched Project Data for Analytics
+  
+  // 1. PROJECT DATA (Mass upload & Analytics ready)
   public projects: Project[] = [
     { 
       id: 'PRJ-101', name: 'ERP System Migration', category: 'INFRASTRUCTURE', location: 'Kenya', 
@@ -62,15 +69,34 @@ export class GovernanceService {
     }
   ];
 
-  // Fixes NG9: auditLog
-  public auditLog = [
-    { time: new Date(), action: 'ARCH_ALIGN', user: 'Admin', details: 'System properties synchronized' }
+  // 2. RESOURCE DATA (For Dashboard Performance Bars)
+  public masterPMs: MasterPM[] = [
+    { name: 'Alice M.', rate: 94, department: 'IT Strategy', activeProjects: 5, lastDelivery: '2 days ago' },
+    { name: 'James K.', rate: 82, department: 'Infrastructure', activeProjects: 3, lastDelivery: '1 week ago' }
   ];
 
-  // Dashboard Streams
-  private pmSource = new BehaviorSubject<any[]>([]);
+  // 3. REGIONAL DATA (For Reports)
+  public masterRegions: MasterRegion[] = [
+    { name: 'Kenya', currency: 'KES', projectCount: 12, status: 'Active' },
+    { name: 'Uganda', currency: 'UGX', projectCount: 8, status: 'Active' }
+  ];
+
+  // 4. REPOSITORY DATA (For Downloads/Sign-offs)
+  public repositoryDocs: RepositoryDocument[] = [
+    { id: 'T1', name: 'Governance Template', category: 'Template', owner: 'PMO', status: 'Finalized', downloadUrl: '#', isTemplate: true }
+  ];
+
+  // 5. AUDIT LOG (For Settings)
+  public auditLog = [
+    { time: new Date(), action: 'CORE_RESTORE', user: 'Admin', details: 'Full governance architecture validated' }
+  ];
+
+  // DASHBOARD STREAMS
+  private pmSource = new BehaviorSubject<MasterPM[]>(this.masterPMs);
   masterPMs$ = this.pmSource.asObservable();
 
-  // Fixes NG9: isAdmin
+  // ACCESS CONTROL (Fixes NG9: isAdmin)
   isAdmin() { return true; }
+
+  constructor() {}
 }
