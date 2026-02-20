@@ -1,9 +1,9 @@
-// src/app/components/auth/register/register.component.ts
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
+import { GovernanceService } from '../../../services/governance.service';
 
 @Component({
   selector: 'app-register',
@@ -11,154 +11,107 @@ import { AuthService } from '../../../services/auth.service';
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="auth-page">
-      <div class="auth-card">
-
+      <div class="auth-card fade-in">
         <div class="auth-logo">
           <div class="logo-icon">📊</div>
           <div class="logo-text">BA Project Tracker</div>
         </div>
 
-        <!-- Success State -->
         <div class="success-state" *ngIf="submitted">
-          <div class="success-icon">✅</div>
-          <h2 class="success-title">Access Requested!</h2>
-          <p class="success-msg">Your request has been submitted. An admin will review and approve your account shortly. You'll receive an email once approved.</p>
-          <a routerLink="/auth/login" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:20px;">Back to Sign In</a>
+          <div class="success-icon">✉️</div>
+          <h2 class="success-title">Request Queued</h2>
+          <p class="success-msg">
+            Your request for <strong>{{ form.role }}</strong> access has been sent to the System Administrator. 
+            You will be notified once your credentials are white-listed in the Master Registry.
+          </p>
+          <a routerLink="/auth/login" class="btn-primary-outline">Return to Login</a>
         </div>
 
         <div *ngIf="!submitted">
-          <h1 class="auth-title">Request Access</h1>
-          <p class="auth-subtitle">Create your account — an admin will approve your access</p>
-
-          <!-- SSO -->
-          <div class="sso-buttons">
-            <button class="sso-btn" (click)="registerWithGoogle()" [disabled]="loading">
-              <svg width="18" height="18" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-              </svg>
-              Sign up with Google
-            </button>
-            <button class="sso-btn" (click)="registerWithMicrosoft()" [disabled]="loading">
-              <svg width="18" height="18" viewBox="0 0 21 21">
-                <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-                <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-                <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-                <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-              </svg>
-              Sign up with Microsoft
-            </button>
-          </div>
-
-          <div class="divider"><span>or register with email</span></div>
+          <h1 class="auth-title">Request System Access</h1>
+          <p class="auth-subtitle">All new accounts require Administrator approval for data integrity.</p>
 
           <div class="form">
             <div class="form-row">
               <div class="form-group">
-                <label>Full Name *</label>
-                <input type="text" [(ngModel)]="form.name" placeholder="Jane Doe" />
+                <label>Full Name</label>
+                <input type="text" [(ngModel)]="form.name" placeholder="John Doe" />
               </div>
               <div class="form-group">
-                <label>Requested Role *</label>
+                <label>Requested Role</label>
                 <select [(ngModel)]="form.role">
-                  <option value="Viewer">Viewer</option>
-                  <option value="BA">BA</option>
-                  <option value="PM">PM</option>
-                  <option value="Admin">Admin</option>
+                  <option value="BA">Business Analyst</option>
+                  <option value="PM">Project Manager</option>
+                  <option value="Viewer">Guest Viewer</option>
+                  <option value="Admin" disabled>Administrator (Invite Only)</option>
                 </select>
               </div>
             </div>
+
             <div class="form-group">
-              <label>Work Email *</label>
-              <input type="email" [(ngModel)]="form.email" placeholder="you@company.com" />
+              <label>Corporate Email</label>
+              <input type="email" [(ngModel)]="form.email" placeholder="name@champion.com" />
             </div>
+
             <div class="form-group">
-              <label>Password *</label>
+              <label>Secure Password</label>
               <div class="password-wrap">
-                <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="form.password" placeholder="Min. 8 characters" />
-                <button class="toggle-pw" (click)="showPassword = !showPassword" type="button">{{ showPassword ? '🙈' : '👁️' }}</button>
+                <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="form.password" placeholder="••••••••" />
+                <button class="toggle-pw" (click)="showPassword = !showPassword" type="button">
+                  {{ showPassword ? '🙈' : '👁️' }}
+                </button>
               </div>
               <div class="pw-strength" *ngIf="form.password">
-                <div class="pw-bar">
-                  <div class="pw-fill" [style.width.%]="passwordStrength.pct" [style.background]="passwordStrength.color"></div>
-                </div>
+                <div class="pw-bar"><div class="pw-fill" [style.width.%]="passwordStrength.pct" [style.background]="passwordStrength.color"></div></div>
                 <span [style.color]="passwordStrength.color">{{ passwordStrength.label }}</span>
               </div>
             </div>
-            <div class="form-group">
-              <label>Confirm Password *</label>
-              <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="form.confirm" placeholder="Repeat password" [class.error-input]="form.confirm && form.password !== form.confirm" />
-              <span class="field-error" *ngIf="form.confirm && form.password !== form.confirm">Passwords do not match</span>
-            </div>
+
             <div class="form-group">
               <label>Reason for Access</label>
-              <textarea [(ngModel)]="form.reason" placeholder="Briefly describe your role and why you need access..." rows="3"></textarea>
+              <textarea [(ngModel)]="form.reason" placeholder="e.g. Managing the upcoming EA expansion registry..." rows="2"></textarea>
             </div>
 
             <div class="error-msg" *ngIf="error">⚠️ {{ error }}</div>
 
             <button class="btn-primary" (click)="register()" [disabled]="loading || !isValid()">
-              <span *ngIf="!loading">Request Access</span>
-              <span *ngIf="loading">Submitting...</span>
+              <span *ngIf="!loading">Submit Access Request</span>
+              <span *ngIf="loading">Processing...</span>
             </button>
           </div>
 
-          <p class="auth-footer">Already have an account? <a routerLink="/auth/login">Sign in</a></p>
+          <p class="auth-footer">Existing user? <a routerLink="/auth/login">Sign in here</a></p>
         </div>
-
       </div>
     </div>
   `,
   styles: [`
-    .auth-page { min-height: 100vh; background: #f7f9fc; display: flex; align-items: center; justify-content: center; font-family: sans-serif; padding: 24px; }
-    .auth-card { background: #fff; border: 1px solid #e8ecf0; border-radius: 14px; padding: 40px; width: 100%; max-width: 460px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+    .auth-page { min-height: 100vh; background: #f8fafc; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .auth-card { background: white; border-radius: 16px; padding: 40px; width: 100%; max-width: 480px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
     .auth-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
-    .logo-icon { font-size: 26px; }
-    .logo-text { font-size: 17px; font-weight: 700; font-family: 'Georgia', serif; color: #1a2332; }
-    .auth-title { font-size: 22px; font-weight: 700; font-family: 'Georgia', serif; color: #1a2332; margin: 0 0 6px; }
-    .auth-subtitle { font-size: 13px; color: #718096; margin: 0 0 20px; }
+    .logo-text { font-family: 'Georgia', serif; font-weight: 800; font-size: 20px; color: #0f172a; }
+    .auth-title { font-size: 24px; font-weight: 700; color: #1e293b; margin: 0 0 8px; }
+    .auth-subtitle { font-size: 14px; color: #64748b; margin-bottom: 30px; }
 
-    .sso-buttons { display: flex; flex-direction: column; gap: 10px; }
-    .sso-btn { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 11px; border: 1px solid #e8ecf0; border-radius: 8px; background: #fff; font-size: 13px; font-weight: 600; color: #1a2332; cursor: pointer; }
-    .sso-btn:hover:not(:disabled) { background: #f7f9fc; }
-    .sso-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .form-row { display: flex; gap: 15px; }
+    .form-group { margin-bottom: 18px; display: flex; flex-direction: column; flex: 1; }
+    .form-group label { font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
+    .form-group input, .form-group select, .form-group textarea { padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s; }
+    .form-group input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 
-    .divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
-    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #e8ecf0; }
-    .divider span { font-size: 12px; color: #a0aec0; white-space: nowrap; }
+    .pw-strength { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+    .pw-bar { flex: 1; height: 4px; background: #f1f5f9; border-radius: 10px; overflow: hidden; }
+    .pw-fill { height: 100%; transition: 0.3s; }
+    .pw-strength span { font-size: 11px; font-weight: 700; }
 
-    .form { display: flex; flex-direction: column; gap: 14px; }
-    .form-row { display: flex; gap: 12px; }
-    .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; }
-    .form-group label { font-size: 12px; font-weight: 700; color: #4a5568; }
-    .form-group input, .form-group select, .form-group textarea { padding: 10px 12px; border: 1px solid #e8ecf0; border-radius: 8px; font-size: 13px; color: #1a2332; outline: none; width: 100%; box-sizing: border-box; font-family: sans-serif; }
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #1a2332; }
-    .form-group textarea { resize: vertical; }
-    .form-group input.error-input { border-color: #e53e3e; }
-    .password-wrap { position: relative; }
-    .password-wrap input { padding-right: 40px; }
-    .toggle-pw { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 14px; }
-    .field-error { font-size: 11px; color: #e53e3e; }
+    .btn-primary { background: #0f172a; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; }
+    .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-primary-outline { display: block; text-align: center; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; color: #1e293b; text-decoration: none; font-weight: 600; margin-top: 20px; }
 
-    .pw-strength { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-    .pw-bar { flex: 1; height: 4px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
-    .pw-fill { height: 100%; border-radius: 99px; transition: width 0.3s; }
-    .pw-strength span { font-size: 11px; font-weight: 600; white-space: nowrap; }
-
-    .error-msg { background: #fde8e8; color: #e53e3e; font-size: 12px; padding: 10px 12px; border-radius: 7px; }
-    .btn-primary { background: #1a2332; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; }
-    .btn-primary:hover:not(:disabled) { background: #2d3748; }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .auth-footer { text-align: center; font-size: 13px; color: #718096; margin: 20px 0 0; }
-    .auth-footer a { color: #1a2332; font-weight: 700; text-decoration: none; }
-
-    .success-state { text-align: center; padding: 20px 0; }
-    .success-icon { font-size: 48px; margin-bottom: 16px; }
-    .success-title { font-size: 22px; font-weight: 700; font-family: 'Georgia', serif; color: #1a2332; margin: 0 0 10px; }
-    .success-msg { font-size: 14px; color: #718096; line-height: 1.6; margin: 0; }
+    .success-state { text-align: center; }
+    .success-icon { font-size: 50px; margin-bottom: 16px; }
+    .fade-in { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   `]
 })
 export class RegisterComponent {
@@ -166,10 +119,13 @@ export class RegisterComponent {
   loading = false;
   submitted = false;
   error = '';
+  form = { name: '', email: '', password: '', confirm: '', role: 'BA', reason: '' };
 
-  form = { name: '', email: '', password: '', confirm: '', role: 'Viewer', reason: '' };
-
-  constructor(private auth: AuthService, private router: Router) {}
+  constructor(
+    private auth: AuthService, 
+    private gov: GovernanceService, // Injected to link registration to Support/Audit logs
+    private router: Router
+  ) {}
 
   get passwordStrength() {
     const p = this.form.password;
@@ -180,37 +136,36 @@ export class RegisterComponent {
     if (/[0-9]/.test(p)) score++;
     if (/[^A-Za-z0-9]/.test(p)) score++;
     const map = [
-      { pct: 25, color: '#e53e3e', label: 'Weak' },
-      { pct: 50, color: '#d69e2e', label: 'Fair' },
-      { pct: 75, color: '#3182ce', label: 'Good' },
-      { pct: 100, color: '#38a169', label: 'Strong' },
+      { pct: 25, color: '#ef4444', label: 'Weak' },
+      { pct: 50, color: '#f59e0b', label: 'Fair' },
+      { pct: 75, color: '#3b82f6', label: 'Good' },
+      { pct: 100, color: '#22c55e', label: 'Strong' },
     ];
     return map[Math.max(score - 1, 0)];
   }
 
   isValid(): boolean {
-    return !!(this.form.name && this.form.email && this.form.password &&
-      this.form.password === this.form.confirm && this.form.password.length >= 8);
+    return !!(this.form.name && this.form.email && this.form.password && this.form.password.length >= 8);
   }
 
   async register() {
-    if (!this.isValid()) return;
-    this.loading = true; this.error = '';
+    this.loading = true; 
+    this.error = '';
+    
+    // 1. Submit to Auth Service
     const result = await this.auth.register(this.form);
+    
+    if (result.success) {
+      // 2. Log the request in the Governance Audit Trail
+      this.gov.logAction('CREATE', 'User Request', `${this.form.email} requested ${this.form.role} role`);
+      
+      // 3. Optional: Trigger a support ticket automatically so the Admin sees it in their inbox
+      this.gov.submitTicket('Access Denied', `New registration request from ${this.form.name} (${this.form.role}). Reason: ${this.form.reason}`);
+      
+      this.submitted = true;
+    } else {
+      this.error = result.error || 'The registry is currently busy. Please try again.';
+    }
     this.loading = false;
-    if (result.success) { this.submitted = true; }
-    else { this.error = result.error || 'Registration failed.'; }
-  }
-
-  async registerWithGoogle() {
-    this.loading = true;
-    await this.auth.loginWithGoogle();
-    this.router.navigate(['/dashboard']);
-  }
-
-  async registerWithMicrosoft() {
-    this.loading = true;
-    await this.auth.loginWithMicrosoft();
-    this.router.navigate(['/dashboard']);
   }
 }
