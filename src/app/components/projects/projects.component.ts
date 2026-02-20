@@ -1,308 +1,247 @@
-// src/app/components/projects/projects.component.ts
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
-
-interface Mention {
-  user: string;
-  message: string;
-  timestamp: Date;
-}
 
 interface Project {
   id: number;
   name: string;
-  type: string;
   pm: string;
   status: string;
   priority: string;
   budget: number;
   spent: number;
   progress: number;
-  startDate: string;
-  endDate: string;
-  signOffs: string[];
-  documents: string[];
-  mentions: Mention[];
+  dueDate: string;
+  type: string;
 }
 
 @Component({
   selector: 'app-projects',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   template: `
-    <div class="projects-page">
-
+    <div class="projects-wrapper">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Projects</h1>
-          <p class="page-subtitle">{{ filteredProjects.length }} of {{ projects.length }} projects</p>
+          <h1 class="page-title">Project Portfolio</h1>
+          <p class="page-subtitle">Manage and track organization-wide initiatives</p>
         </div>
-        <button class="btn-primary" (click)="openAddModal()">+ Add Project</button>
+        <div class="header-actions">
+          <div class="search-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="applyFilters()" placeholder="Search projects or managers...">
+          </div>
+          <button class="btn-primary">+ Add Project</button>
+        </div>
       </div>
 
-      <div class="toolbar">
-        <input class="search-input" type="text" placeholder="🔍 Search projects..."
-          [(ngModel)]="searchTerm" (ngModelChange)="applyFilters()" />
-        <select class="filter-select" [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()">
-          <option value="">All Statuses</option>
-          <option value="Active">Active</option>
-          <option value="On Hold">On Hold</option>
-          <option value="At Risk">At Risk</option>
-          <option value="Completed">Completed</option>
-          <option value="Planning">Planning</option>
-        </select>
-        <select class="filter-select" [(ngModel)]="priorityFilter" (ngModelChange)="applyFilters()">
-          <option value="">All Priorities</option>
-          <option value="Critical">Critical</option>
-          <option value="High">High</option>
-          <option value="Medium">Medium</option>
-          <option value="Low">Low</option>
-        </select>
-      </div>
-
-      <div class="table-wrapper">
-        <table class="projects-table">
-          <thead>
-            <tr>
-              <th (click)="sort('name')" class="sortable">Project Name <span>{{ getSortIcon('name') }}</span></th>
-              <th (click)="sort('pm')" class="sortable">PM <span>{{ getSortIcon('pm') }}</span></th>
-              <th (click)="sort('status')" class="sortable">Status <span>{{ getSortIcon('status') }}</span></th>
-              <th (click)="sort('priority')" class="sortable">Priority <span>{{ getSortIcon('priority') }}</span></th>
-              <th (click)="sort('budget')" class="sortable">Budget (KES) <span>{{ getSortIcon('budget') }}</span></th>
-              <th (click)="sort('spent')" class="sortable">Spent (KES) <span>{{ getSortIcon('spent') }}</span></th>
-              <th>Variance</th>
-              <th (click)="sort('progress')" class="sortable">Progress <span>{{ getSortIcon('progress') }}</span></th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let p of filteredProjects" [class.selected]="selectedProject?.id === p.id" (click)="selectedProject = p">
-              <td class="project-name">{{ p.name }}</td>
-              <td>{{ p.pm }}</td>
-              <td><span class="status-badge" [ngClass]="getStatusClass(p.status)">{{ p.status }}</span></td>
-              <td><span class="priority-badge" [ngClass]="getPriorityClass(p.priority)">{{ p.priority }}</span></td>
-              <td class="num-cell">{{ p.budget | currency:'KES':'symbol-narrow':'1.0-0' }}</td>
-              <td class="num-cell" [style.color]="(p.spent || 0) > (p.budget || 0) ? '#e53e3e' : '#2d3748'">
-                {{ p.spent | currency:'KES':'symbol-narrow':'1.0-0' }}
-              </td>
-              <td class="num-cell">
-                <span [style.color]="(p.budget - p.spent) < 0 ? '#e53e3e' : '#38a169'">
-                  {{ (p.budget - p.spent) | currency:'KES':'symbol-narrow':'1.0-0' }}
-                </span>
-              </td>
-              <td>
-                <div class="progress-wrap">
-                  <div class="progress-bar">
-                    <div class="progress-fill" [style.width.%]="p.progress" [style.background]="getProgressColor(p.progress)"></div>
+      <div class="card">
+        <div class="table-responsive">
+          <table class="projects-table">
+            <thead>
+              <tr>
+                <th>Project Name & Type</th>
+                <th>Project Manager</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Financial Health (KES)</th>
+                <th>Completion</th>
+                <th class="text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of pagedProjects">
+                <td>
+                  <div class="project-info">
+                    <span class="p-name">{{ p?.name }}</span>
+                    <span class="p-type">{{ p?.type }} · Due {{ p?.dueDate }}</span>
                   </div>
-                  <span class="progress-pct">{{ p.progress }}%</span>
-                </div>
-              </td>
-              <td>
-                <div class="action-btns">
-                  <button class="edit-btn" title="Edit" (click)="openEditModal(p); $event.stopPropagation()">✏️</button>
-                  <button class="delete-btn" title="Delete" (click)="confirmDelete(p); $event.stopPropagation()">🗑️</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                </td>
+                <td class="pm-cell">{{ p?.pm }}</td>
+                <td>
+                  <span class="status-badge" [ngClass]="getStatusClass(p?.status || '')">
+                    {{ p?.status }}
+                  </span>
+                </td>
+                <td>
+                  <span class="priority-tag" [ngClass]="p?.priority?.toLowerCase()">
+                    <span class="p-dot"></span> {{ p?.priority }}
+                  </span>
+                </td>
+                <td>
+                  <div class="budget-analytics" [class.over-budget]="(p?.spent || 0) > (p?.budget || 0)">
+                    <div class="budget-values">
+                      <span class="spent">{{ p?.spent | currency:'KES ':'symbol-narrow':'1.0-0' }}</span>
+                      <span class="total">/ {{ p?.budget | currency:'KES ':'symbol-narrow':'1.0-0' }}</span>
+                    </div>
+                    <div class="budget-bar-bg">
+                      <div class="budget-bar-fill" [style.width.%]="getBudgetPercentage(p)"></div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div class="progress-container">
+                    <div class="progress-mini-bar">
+                      <div class="progress-fill" [style.width.%]="p?.progress"></div>
+                    </div>
+                    <span class="progress-label">{{ p?.progress }}%</span>
+                  </div>
+                </td>
+                <td class="text-right">
+                  <button class="btn-action">Edit</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <div class="modal-overlay" *ngIf="showModal" (click)="showModal = false">
-        <div class="modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>{{ isEditing ? 'Edit Project' : 'Add New Project' }}</h2>
-            <button class="modal-close" (click)="showModal = false">✕</button>
+        <div class="pagination-footer">
+          <div class="pagination-info">
+            Showing <b>{{ (currentPage-1)*pageSize + 1 }}</b> to 
+            <b>{{ Math.min(currentPage*pageSize, filteredProjects.length) }}</b> of 
+            <b>{{ filteredProjects.length }}</b> entries
           </div>
-          <div class="modal-body">
-            <div class="form-row">
-              <div class="form-group">
-                <label>Project Name *</label>
-                <input type="text" [(ngModel)]="currentProject.name" placeholder="Enter project name" />
-              </div>
-              <div class="form-group">
-                <label>Project Manager *</label>
-                <input type="text" [(ngModel)]="currentProject.pm" placeholder="PM name" />
-              </div>
+          <div class="pagination-controls">
+            <button class="page-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">Previous</button>
+            <div class="page-numbers">
+              <button *ngFor="let page of pageNumbers" 
+                      class="page-btn-num" 
+                      [class.active]="page === currentPage" 
+                      (click)="goToPage(page)">
+                {{ page }}
+              </button>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Budget (KES)</label>
-                <input type="number" [(ngModel)]="currentProject.budget" placeholder="0" />
-              </div>
-              <div class="form-group">
-                <label>Spent (KES)</label>
-                <input type="number" [(ngModel)]="currentProject.spent" placeholder="0" />
-              </div>
-              <div class="form-group">
-                <label>Progress (%)</label>
-                <input type="number" [(ngModel)]="currentProject.progress" min="0" max="100" placeholder="0" />
-              </div>
-            </div>
-
-            <div class="budget-indicator" *ngIf="(currentProject.budget || 0) > 0">
-              <div class="budget-bar-track">
-                <div class="budget-bar-fill"
-                  [style.width.%]="Math.min(((currentProject.spent || 0) / (currentProject.budget || 1)) * 100, 100)"
-                  [style.background]="(currentProject.spent || 0) > (currentProject.budget || 0) ? '#e53e3e' : '#38a169'">
-                </div>
-              </div>
-              <span class="budget-bar-label"
-                [style.color]="(currentProject.spent || 0) > (currentProject.budget || 0) ? '#e53e3e' : '#38a169'">
-                {{ (((currentProject.spent || 0) / (currentProject.budget || 1)) * 100).toFixed(0) }}% of budget used
-              </span>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" (click)="showModal = false">Cancel</button>
-            <button class="btn-primary" (click)="saveProject()">
-              {{ isEditing ? 'Save Changes' : 'Add Project' }}
-            </button>
+            <button class="page-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">Next</button>
           </div>
         </div>
       </div>
-
-      <div class="modal-overlay" *ngIf="showDeleteModal" (click)="showDeleteModal = false">
-        <div class="modal modal-sm" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2 style="color: #e53e3e">⚠️ Delete Project</h2>
-          </div>
-          <div class="modal-body">
-            <p>Are you sure you want to delete <strong>{{ projectToDelete?.name }}</strong>? This action cannot be undone.</p>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" (click)="showDeleteModal = false">Cancel</button>
-            <button class="btn-danger" (click)="deleteProject()">Delete Forever</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="toast" *ngIf="toastVisible">{{ toastMessage }}</div>
-
     </div>
   `,
   styles: [`
-    .projects-page { display: flex; flex-direction: column; gap: 20px; font-family: sans-serif; color: #1a2332; padding: 20px; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; }
-    .page-title { font-size: 26px; font-weight: 700; font-family: 'Georgia', serif; margin: 0; }
-    .btn-primary { background: #1a2332; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-    .btn-danger { background: #e53e3e; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-    .toolbar { display: flex; gap: 12px; align-items: center; }
-    .search-input { flex: 1; padding: 10px; border: 1px solid #e8ecf0; border-radius: 8px; }
-    .table-wrapper { background: #fff; border: 1px solid #e8ecf0; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    .projects-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .projects-table th { background: #f7f9fc; padding: 12px; text-align: left; color: #718096; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #e8ecf0; cursor: pointer; }
-    .projects-table td { padding: 12px; border-bottom: 1px solid #f7f9fc; }
-    .num-cell { font-weight: 600; }
-    .action-btns { display: flex; gap: 5px; }
-    .edit-btn, .delete-btn { border: 1px solid #e8ecf0; background: #fff; padding: 5px; border-radius: 4px; cursor: pointer; }
-    .delete-btn:hover { background: #fff5f5; border-color: #feb2b2; }
-    .status-badge { padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
-    .status-active { background: #e8fdf0; color: #38a169; }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-    .modal { background: #fff; border-radius: 12px; width: 600px; max-width: 90vw; }
-    .modal-sm { width: 400px; }
-    .modal-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
-    .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-    .form-row { display: flex; gap: 15px; }
-    .form-group { flex: 1; display: flex; flex-direction: column; gap: 5px; }
-    .form-group label { font-size: 11px; font-weight: 700; color: #718096; }
-    .form-group input { padding: 10px; border: 1px solid #e8ecf0; border-radius: 6px; }
-    .budget-indicator { background: #f7f9fc; padding: 12px; border-radius: 8px; }
-    .budget-bar-track { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
-    .budget-bar-fill { height: 100%; transition: width 0.3s; }
-    .toast { position: fixed; bottom: 20px; right: 20px; background: #1a2332; color: #fff; padding: 12px 24px; border-radius: 8px; z-index: 2000; }
+    .projects-wrapper { padding: 30px; background: #f8fafc; min-height: 100vh; font-family: 'Inter', sans-serif; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
+    .page-title { font-family: 'Georgia', serif; font-size: 28px; font-weight: 700; color: #0f172a; margin: 0; }
+    .page-subtitle { color: #64748b; font-size: 14px; margin-top: 4px; }
+
+    .header-actions { display: flex; gap: 12px; }
+    .search-container { position: relative; }
+    .search-icon { position: absolute; left: 12px; top: 10px; font-size: 14px; color: #94a3b8; }
+    .search-container input { padding: 10px 12px 10px 35px; border-radius: 8px; border: 1px solid #e2e8f0; width: 280px; outline: none; font-size: 13px; }
+    .btn-primary { background: #0f172a; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; }
+
+    .card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .table-responsive { width: 100%; overflow-x: auto; }
+    .projects-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .projects-table th { padding: 16px; font-size: 11px; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #e2e8f0; letter-spacing: 0.05em; background: #fcfdfe; }
+    .projects-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vertical-align: middle; }
+
+    .project-info { display: flex; flex-direction: column; }
+    .p-name { font-weight: 700; color: #0f172a; margin-bottom: 2px; }
+    .p-type { font-size: 11px; color: #94a3b8; font-weight: 500; }
+    .pm-cell { color: #475569; font-weight: 500; }
+
+    /* Priority Tags */
+    .priority-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; background: #f1f5f9; color: #475569; }
+    .p-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .priority-tag.critical { background: #fef2f2; color: #dc2626; }
+    .priority-tag.critical .p-dot { background: #dc2626; }
+    .priority-tag.high { background: #fff7ed; color: #ea580c; }
+    .priority-tag.high .p-dot { background: #ea580c; }
+
+    /* Budget Analytics */
+    .budget-analytics { min-width: 140px; }
+    .budget-values { display: flex; gap: 4px; margin-bottom: 6px; font-size: 12px; }
+    .spent { font-weight: 700; color: #0f172a; }
+    .total { color: #94a3b8; }
+    .over-budget .spent { color: #ef4444; }
+    .budget-bar-bg { width: 100%; height: 4px; background: #f1f5f9; border-radius: 2px; overflow: hidden; }
+    .budget-bar-fill { height: 100%; background: #94a3b8; }
+    .over-budget .budget-bar-fill { background: #ef4444; }
+
+    /* Progress Mini */
+    .progress-container { display: flex; align-items: center; gap: 10px; }
+    .progress-mini-bar { width: 50px; height: 6px; background: #f1f5f9; border-radius: 10px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #0f172a; }
+    .progress-label { font-size: 11px; font-weight: 700; color: #64748b; }
+
+    /* Badges */
+    .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .status-active { background: #dcfce7; color: #15803d; }
+    .status-at-risk { background: #fee2e2; color: #b91c1c; }
+    .status-on-hold { background: #fef3c7; color: #92400e; }
+
+    /* Pagination Styling */
+    .pagination-footer { padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; background: #fcfdfe; }
+    .pagination-info { font-size: 13px; color: #64748b; }
+    .pagination-controls { display: flex; align-items: center; gap: 12px; }
+    .page-numbers { display: flex; gap: 4px; }
+    .page-btn { padding: 6px 12px; border: 1px solid #e2e8f0; background: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; color: #475569; }
+    .page-btn-num { width: 32px; height: 32px; border: 1px solid #e2e8f0; background: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; color: #475569; }
+    .page-btn-num.active { background: #0f172a; color: white; border-color: #0f172a; }
+    .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .btn-action { background: none; border: 1px solid #e2e8f0; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-action:hover { background: #f8fafc; }
+    .text-right { text-align: right; }
   `]
 })
-export class ProjectsComponent {
-  Math = Math;
+export class ProjectsComponent implements OnInit {
+  Math = Math; // Necessary for template usage
   searchTerm = '';
-  statusFilter = '';
-  priorityFilter = '';
-  showModal = false;
-  showDeleteModal = false;
-  isEditing = false;
-  toastVisible = false;
-  toastMessage = '';
+  currentPage = 1;
+  pageSize = 5;
 
-  currentProject: Project = this.emptyProject();
-  projectToDelete: Project | null = null;
-  selectedProject: Project | null = null;
-
-  projects: Project[] = [
-    { id: 1, name: 'ERP System Migration', type: 'IT', pm: 'Alice M.', status: 'Active', priority: 'Critical', budget: 850000, spent: 612000, progress: 72, startDate: '2026-01-10', endDate: '2026-02-25', signOffs: [], documents: [], mentions: [] },
-    { id: 2, name: 'Customer Portal Redesign', type: 'BA', pm: 'James K.', status: 'Active', priority: 'High', budget: 320000, spent: 144000, progress: 45, startDate: '2025-12-01', endDate: '2026-03-10', signOffs: [], documents: [], mentions: [] }
+  allProjects: Project[] = [
+    { id: 1, name: 'ERP System Migration', type: 'Infrastructure', pm: 'Alice M.', status: 'Active', priority: 'Critical', budget: 850000, spent: 612000, progress: 72, dueDate: 'Feb 25, 2026' },
+    { id: 2, name: 'Customer Portal Redesign', type: 'Design', pm: 'James K.', status: 'Active', priority: 'High', budget: 320000, spent: 350000, progress: 45, dueDate: 'Mar 10, 2026' },
+    { id: 3, name: 'HR Self-Service Portal', type: 'Web App', pm: 'Sarah T.', status: 'On Hold', priority: 'Medium', budget: 210000, spent: 63000, progress: 30, dueDate: 'Mar 8, 2026' },
+    { id: 4, name: 'Supply Chain Analytics', type: 'Big Data', pm: 'David O.', status: 'At Risk', priority: 'High', budget: 450000, spent: 480000, progress: 18, dueDate: 'Feb 28, 2026' },
+    { id: 5, name: 'Mobile App v2 Launch', type: 'Mobile', pm: 'Linda N.', status: 'Active', priority: 'High', budget: 380000, spent: 338000, progress: 89, dueDate: 'Mar 20, 2026' },
+    { id: 6, name: 'Compliance Audit', type: 'Finance', pm: 'Alice M.', status: 'Completed', priority: 'Medium', budget: 150000, spent: 145000, progress: 100, dueDate: 'Jan 15, 2026' },
+    { id: 7, name: 'Warehouse Automation', type: 'Robotics', pm: 'David O.', status: 'Planning', priority: 'Critical', budget: 1200000, spent: 50000, progress: 5, dueDate: 'Jun 30, 2026' }
   ];
 
-  filteredProjects: Project[] = [...this.projects];
+  filteredProjects: Project[] = [];
 
-  emptyProject(): Project {
-    return { id: 0, name: '', type: 'BA', pm: '', status: 'Planning', priority: 'Medium', budget: 0, spent: 0, progress: 0, startDate: '', endDate: '', signOffs: [], documents: [], mentions: [] };
-  }
-
-  confirmDelete(project: Project) {
-    this.projectToDelete = project;
-    this.showDeleteModal = true;
-  }
-
-  deleteProject() {
-    if (!this.projectToDelete) return;
-    this.projects = this.projects.filter(p => p.id !== this.projectToDelete?.id);
+  ngOnInit() {
     this.applyFilters();
-    this.showDeleteModal = false;
-    this.showToast('🗑️ Project removed');
-  }
-
-  openAddModal() {
-    this.isEditing = false;
-    this.currentProject = this.emptyProject();
-    this.showModal = true;
-  }
-
-  openEditModal(project: Project) {
-    this.isEditing = true;
-    this.currentProject = { ...project };
-    this.showModal = true;
-  }
-
-  saveProject() {
-    if (!this.currentProject.name || !this.currentProject.pm) {
-      this.showToast('⚠️ Name and PM are required');
-      return;
-    }
-    if (this.isEditing) {
-      const idx = this.projects.findIndex(p => p.id === this.currentProject.id);
-      if (idx > -1) this.projects[idx] = { ...this.currentProject };
-      this.showToast('✅ Project updated');
-    } else {
-      this.currentProject.id = Date.now();
-      this.projects.unshift({ ...this.currentProject });
-      this.showToast('✅ Project added');
-    }
-    this.applyFilters();
-    this.showModal = false;
   }
 
   applyFilters() {
-    this.filteredProjects = this.projects.filter(p => 
-      p.name.toLowerCase().includes(this.searchTerm.toLowerCase()) &&
-      (this.statusFilter === '' || p.status === this.statusFilter) &&
-      (this.priorityFilter === '' || p.priority === this.priorityFilter)
+    this.filteredProjects = this.allProjects.filter(p => 
+      p.name.toLowerCase().includes(this.searchTerm.toLowerCase()) || 
+      p.pm.toLowerCase().includes(this.searchTerm.toLowerCase())
     );
+    this.currentPage = 1;
   }
 
-  sort(column: string) { /* Sorting logic as before */ }
-  getSortIcon(column: string) { return '↕'; }
-  getStatusClass(status: string) { return status === 'Active' ? 'status-active' : ''; }
-  getPriorityClass(priority: string) { return 'priority-badge'; }
-  getProgressColor(progress: number) { return progress >= 70 ? '#38a169' : '#3182ce'; }
+  get pagedProjects() {
+    const start = (this.currentPage - 1) * this.pageSize;
+    return this.filteredProjects.slice(start, start + this.pageSize);
+  }
 
-  showToast(message: string) {
-    this.toastMessage = message;
-    this.toastVisible = true;
-    setTimeout(() => this.toastVisible = false, 3000);
+  get totalPages() {
+    return Math.ceil(this.filteredProjects.length / this.pageSize);
+  }
+
+  get pageNumbers() {
+    return Array.from({ length: this.totalPages }, (_, i) => i + 1);
+  }
+
+  goToPage(page: number) {
+    this.currentPage = page;
+  }
+
+  getBudgetPercentage(p: Project): number {
+    return Math.min((p.spent / p.budget) * 100, 100);
+  }
+
+  getStatusClass(status: string): string {
+    const map: Record<string, string> = {
+      'Active': 'status-active',
+      'At Risk': 'status-at-risk',
+      'On Hold': 'status-on-hold'
+    };
+    return map[status] || '';
   }
 }
