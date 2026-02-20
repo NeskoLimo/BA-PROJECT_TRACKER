@@ -1,6 +1,13 @@
-# Create the missing file locally if it's gone
-ng generate component app --flat --skip-tests
-# Then commit and push
-git add .
-git commit -m "Restore app.component.ts"
-git push
+import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [RouterOutlet],
+  template: `<router-outlet></router-outlet>`,
+  styles: []
+})
+export class AppComponent {  // ← must have "export"
+  title = 'BA-PROJECT_TRACKER';
+}
