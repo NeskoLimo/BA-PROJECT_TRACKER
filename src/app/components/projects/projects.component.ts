@@ -34,7 +34,6 @@ interface Project {
   template: `
     <div class="projects-page">
 
-      <!-- Page Header -->
       <div class="page-header">
         <div>
           <h1 class="page-title">Projects</h1>
@@ -43,7 +42,6 @@ interface Project {
         <button class="btn-primary" (click)="openAddModal()">+ Add Project</button>
       </div>
 
-      <!-- Toolbar -->
       <div class="toolbar">
         <input class="search-input" type="text" placeholder="🔍  Search projects..."
           [(ngModel)]="searchTerm" (ngModelChange)="applyFilters()" />
@@ -68,7 +66,6 @@ interface Project {
         </label>
       </div>
 
-      <!-- Table -->
       <div class="table-wrapper">
         <table class="projects-table">
           <thead>
@@ -141,7 +138,6 @@ interface Project {
         </table>
       </div>
 
-      <!-- Add/Edit Project Modal -->
       <div class="modal-overlay" *ngIf="showModal" (click)="showModal = false">
         <div class="modal" (click)="$event.stopPropagation()">
           <div class="modal-header">
@@ -201,6 +197,7 @@ interface Project {
                 <label>Progress (%)</label>
                 <input type="number" [(ngModel)]="currentProject.progress" min="0" max="100" placeholder="0" />
               </div>
+            </div>
             <div class="form-row">
               <div class="form-group">
                 <label>Start Date</label>
@@ -212,21 +209,19 @@ interface Project {
               </div>
             </div>
 
-            <!-- Budget Indicator -->
-            <div class="budget-indicator" *ngIf="currentProject.budget > 0">
+            <div class="budget-indicator" *ngIf="(currentProject.budget || 0) > 0">
               <div class="budget-bar-track">
                 <div class="budget-bar-fill"
-                  [style.width.%]="Math.min((currentProject.spent / currentProject.budget) * 100, 100)"
                   [style.width.%]="Math.min(((currentProject.spent || 0) / (currentProject.budget || 1)) * 100, 100)"
+                  [style.background]="(currentProject.spent || 0) > (currentProject.budget || 0) ? '#e53e3e' : '#38a169'">
                 </div>
               </div>
               <span class="budget-bar-label"
-                [style.background]="currentProject.spent > currentProject.budget ? '#e53e3e' : '#38a169'"
-                [style.background]="(currentProject.spent || 0) > (currentProject.budget || 0) ? '#e53e3e' : '#38a169'"
+                [style.color]="(currentProject.spent || 0) > (currentProject.budget || 0) ? '#e53e3e' : '#38a169'">
+                {{ (((currentProject.spent || 0) / (currentProject.budget || 1)) * 100).toFixed(0) }}% of budget used
               </span>
             </div>
 
-            <!-- Mentions Section -->
             <div class="mentions-section">
               <label class="mentions-label">💬 Mention a team member</label>
               <div class="mentions-input-row">
@@ -255,7 +250,6 @@ interface Project {
         </div>
       </div>
 
-      <!-- Mentions Modal -->
       <div class="modal-overlay" *ngIf="showMentionsModal" (click)="showMentionsModal = false">
         <div class="modal modal-sm" (click)="$event.stopPropagation()">
           <div class="modal-header">
@@ -283,7 +277,6 @@ interface Project {
         </div>
       </div>
 
-      <!-- Toast -->
       <div class="toast" *ngIf="toastVisible">{{ toastMessage }}</div>
 
     </div>
@@ -408,10 +401,26 @@ export class ProjectsComponent {
   toastVisible = false;
   toastMessage = '';
 
-  currentProject: Partial<Project> = this.emptyProject();
+  // Initializing with a full project instead of Partial to avoid template errors
+  currentProject: Project = this.emptyProject();
 
-  emptyProject(): Partial<Project> {
-    return { name: '', pm: '', type: 'BA', status: 'Planning', priority: 'Medium', budget: 0, spent: 0, progress: 0, startDate: '', endDate: '', signOffs: [], documents: [], mentions: [] };
+  emptyProject(): Project {
+    return { 
+      id: 0, 
+      name: '', 
+      pm: '', 
+      type: 'BA', 
+      status: 'Planning', 
+      priority: 'Medium', 
+      budget: 0, 
+      spent: 0, 
+      progress: 0, 
+      startDate: '', 
+      endDate: '', 
+      signOffs: [], 
+      documents: [], 
+      mentions: [] 
+    };
   }
 
   projects: Project[] = [
@@ -448,14 +457,14 @@ export class ProjectsComponent {
   }
 
   getProjectMentions(): Mention[] {
-    return (this.currentProject.mentions as Mention[]) || [];
+    return this.currentProject.mentions || [];
   }
 
   addMention() {
     if (!this.mentionInput.trim()) return;
     const mention: Mention = { user: 'NeskoLimo', message: this.mentionInput, timestamp: new Date() };
     if (!this.currentProject.mentions) this.currentProject.mentions = [];
-    (this.currentProject.mentions as Mention[]).push(mention);
+    this.currentProject.mentions.push(mention);
     this.mentionInput = '';
   }
 
@@ -473,24 +482,15 @@ export class ProjectsComponent {
       return;
     }
     if (this.isEditing) {
-      const idx = this.projects.findIndex(p => p.id === (this.currentProject as Project).id);
-      if (idx > -1) this.projects[idx] = { ...this.projects[idx], ...this.currentProject } as Project;
+      const idx = this.projects.findIndex(p => p.id === this.currentProject.id);
+      if (idx > -1) this.projects[idx] = { ...this.currentProject };
       this.showToast('✅ Project updated successfully');
     } else {
       const project: Project = {
+        ...this.currentProject,
         id: this.projects.length + 1,
-        name: this.currentProject.name!,
-        type: this.currentProject.type || 'BA',
-        pm: this.currentProject.pm!,
-        status: this.currentProject.status || 'Planning',
-        priority: this.currentProject.priority || 'Medium',
-        budget: this.currentProject.budget || 0,
-        spent: this.currentProject.spent || 0,
-        progress: this.currentProject.progress || 0,
         startDate: this.currentProject.startDate || '—',
         endDate: this.currentProject.endDate || '—',
-        signOffs: [], documents: [],
-        mentions: (this.currentProject.mentions as Mention[]) || []
       };
       this.projects.unshift(project);
       this.showToast('✅ Project added successfully');
