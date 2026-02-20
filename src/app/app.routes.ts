@@ -20,6 +20,10 @@ export const routes: Routes = [
     loadComponent: () => import('./components/reports/reports.component').then(m => m.ReportsComponent)
   },
   {
+    path: 'repository', // <--- New Route Added
+    loadComponent: () => import('./components/repository/repository.component').then(m => m.RepositoryComponent)
+  },
+  {
     path: 'settings',
     loadComponent: () => import('./components/settings/settings.component').then(m => m.SettingsComponent)
   }
