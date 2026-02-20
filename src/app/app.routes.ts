@@ -1,9 +1,7 @@
-import { Routes } from '@angular/router';
+// WRONG (current)
+() => import('./dashboard/dashboard.component').then(m => m.DashboardComponent)
+() => import('./projects/projects.component').then(m => m.ProjectsComponent)
 
-export const routes: Routes = [
-  // Placeholder / default routes – replace with your actual pages
-  { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
-  { path: 'dashboard', loadComponent: () => import('./dashboard/dashboard.component').then(m => m.DashboardComponent) },
-  { path: 'projects', loadComponent: () => import('./projects/projects.component').then(m => m.ProjectsComponent) },
-  { path: '**', redirectTo: '/dashboard' }  // catch-all
-];
+// CORRECT (fix)
+() => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent)
+() => import('./components/projects/projects.component').then(m => m.ProjectsComponent)
