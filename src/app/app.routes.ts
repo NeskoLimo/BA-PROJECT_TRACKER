@@ -1,7 +1,17 @@
-// WRONG (current)
-() => import('./dashboard/dashboard.component').then(m => m.DashboardComponent)
-() => import('./projects/projects.component').then(m => m.ProjectsComponent)
+import { Routes } from '@angular/router';
 
-// CORRECT (fix)
-() => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent)
-() => import('./components/projects/projects.component').then(m => m.ProjectsComponent)
+export const routes: Routes = [
+  {
+    path: '',
+    redirectTo: 'dashboard',
+    pathMatch: 'full'
+  },
+  {
+    path: 'dashboard',
+    loadComponent: () => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent)
+  },
+  {
+    path: 'projects',
+    loadComponent: () => import('./components/projects/projects.component').then(m => m.ProjectsComponent)
+  }
+];
