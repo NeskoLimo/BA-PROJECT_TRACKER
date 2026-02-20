@@ -51,8 +51,14 @@ interface WorkflowDoc {
               <p class="repo-desc">{{ t.description }}</p>
             </div>
             <div class="repo-footer">
-              <span class="role-badge">Required: {{ t.minRole }}</span>
-              <button class="btn-download" (click)="onDownload(t.name)">Download</button>
+              <span class="role-badge" [class.restricted]="!canDownload(t.minRole)">
+                {{ canDownload(t.minRole) ? 'Access: Granted' : 'Access: PM Only' }}
+              </span>
+              <button class="btn-download" 
+                      [disabled]="!canDownload(t.minRole)"
+                      (click)="onDownload(t.name)">
+                {{ canDownload(t.minRole) ? 'Download' : '🔒 Locked' }}
+              </button>
             </div>
           </div>
         </div>
@@ -102,6 +108,40 @@ interface WorkflowDoc {
           </table>
         </div>
       </div>
+
+      <div class="modal-overlay" *ngIf="showUploadModal">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3 class="modal-title">Submit for Review</h3>
+            <button class="close-btn" (click)="showUploadModal = false">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Select Document</label>
+              <input type="file" (change)="handleFileSelect($event)">
+            </div>
+            <div class="form-group">
+              <label>Project Context</label>
+              <input type="text" [(ngModel)]="newDoc.project" placeholder="e.g., ERP Migration">
+            </div>
+            <div class="form-group">
+              <label>Assign Next Signatory</label>
+              <select [(ngModel)]="newDoc.signatory">
+                <option value="" disabled>Choose official...</option>
+                <option *ngFor="let s of signatories" [value]="s">{{ s }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="showUploadModal = false">Cancel</button>
+            <button class="btn-primary" 
+                    (click)="submitForSignoff()" 
+                    [disabled]="!newDoc.signatory || !newDoc.project">
+              Initiate Workflow
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -123,12 +163,15 @@ interface WorkflowDoc {
     .repo-desc { font-size: 13px; color: #64748b; line-height: 1.5; margin-bottom: 20px; flex-grow: 1; }
     
     .repo-footer { border-top: 1px solid #f1f5f9; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; }
-    .role-badge { font-size: 11px; color: #94a3b8; font-weight: 600; }
+    .role-badge { font-size: 11px; color: #16a34a; font-weight: 700; }
+    .role-badge.restricted { color: #ef4444; }
     .btn-download { background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-download:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    /* Workflow Styles */
+    /* Workflow Table */
     .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     .workflow-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .workflow-header h3 { font-family: 'Georgia', serif; font-size: 18px; margin: 0; }
     .workflow-table { width: 100%; border-collapse: collapse; }
     .workflow-table th { text-align: left; font-size: 11px; color: #94a3b8; text-transform: uppercase; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
     .workflow-table td { padding: 16px 0; border-bottom: 1px solid #f8fafc; font-size: 13px; }
@@ -144,13 +187,36 @@ interface WorkflowDoc {
     .status-pill.approved { background: #f0fdf4; color: #16a34a; }
     .status-pill.draft { background: #f1f5f9; color: #64748b; }
 
+    /* Modals */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.6); display: flex; align-items: center;
+      justify-content: center; z-index: 1000; backdrop-filter: blur(4px);
+    }
+    .modal-card { background: white; border-radius: 16px; width: 450px; padding: 28px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-title { font-family: 'Georgia', serif; margin: 0; font-size: 20px; }
+    .form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .form-group label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; }
+    .form-group input, .form-group select { padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; font-size: 14px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+    
     .btn-primary { background: #0f172a; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .btn-secondary { background: #f1f5f9; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
     .btn-action { color: #2563eb; background: none; border: none; font-weight: 700; cursor: pointer; }
+    .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #94a3b8; }
     .text-right { text-align: right; }
   `]
 })
 export class RepositoryComponent {
   activeTab = 'templates';
+  showUploadModal = false;
+
+  // Role Logic
+  currentUser = { name: 'Alice M.', role: 'PM' };
+  signatories = ['COO - Mr. Kamau', 'Finance Director', 'IT Head', 'CEO'];
+  
+  newDoc = { fileName: '', project: '', signatory: '' };
 
   templates: Template[] = [
     { name: 'Project Charter', category: 'Initiation', minRole: 'PM', icon: '📜', description: 'Define project scope, objectives, and key stakeholders.' },
@@ -164,11 +230,37 @@ export class RepositoryComponent {
     { id: 2, fileName: 'Budget_Adjustment_Q1.xlsx', project: 'Supply Chain', uploader: 'David O.', status: 'Approved', currentSignatory: 'Finance Director', dateUploaded: 'Feb 15, 2026' }
   ];
 
+  canDownload(minRole: string): boolean {
+    if (minRole === 'All') return true;
+    return this.currentUser.role === 'PM' || this.currentUser.role === 'Admin';
+  }
+
   onDownload(name: string) {
-    console.log(`Downloading ${name} template...`);
+    alert(`Initiating secure download for: ${name}`);
   }
 
   onUpload() {
-    console.log('Opening upload modal...');
+    this.showUploadModal = true;
+  }
+
+  handleFileSelect(event: any) {
+    const path = event.target.value;
+    this.newDoc.fileName = path.split('\\').pop() || 'Untitled_Document.pdf';
+  }
+
+  submitForSignoff() {
+    const doc: WorkflowDoc = {
+      id: Date.now(),
+      fileName: this.newDoc.fileName,
+      project: this.newDoc.project,
+      uploader: this.currentUser.name,
+      status: 'Pending',
+      currentSignatory: this.newDoc.signatory,
+      dateUploaded: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    };
+    
+    this.workflowDocs.unshift(doc);
+    this.showUploadModal = false;
+    this.newDoc = { fileName: '', project: '', signatory: '' };
   }
 }
