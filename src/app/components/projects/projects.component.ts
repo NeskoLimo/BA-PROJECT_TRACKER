@@ -218,12 +218,12 @@ interface Project {
               <div class="budget-bar-track">
                 <div class="budget-bar-fill"
                   [style.width.%]="Math.min((currentProject.spent / currentProject.budget) * 100, 100)"
-                  [style.background]="currentProject.spent > currentProject.budget ? '#e53e3e' : '#38a169'">
+                  [style.width.%]="Math.min(((currentProject.spent || 0) / (currentProject.budget || 1)) * 100, 100)"
                 </div>
               </div>
               <span class="budget-bar-label"
-                [style.color]="(currentProject.spent || 0) > (currentProject.budget || 1) ? '#e53e3e' : '#38a169'">
-                {{ (((currentProject.spent || 0) / (currentProject.budget || 1)) * 100).toFixed(0) }}% of budget used
+                [style.background]="currentProject.spent > currentProject.budget ? '#e53e3e' : '#38a169'"
+                [style.background]="(currentProject.spent || 0) > (currentProject.budget || 0) ? '#e53e3e' : '#38a169'"
               </span>
             </div>
 
