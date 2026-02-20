@@ -181,7 +181,7 @@ interface Project {
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label>Budget (USD)</label>
+                <label>Budget (KES)</label>
                 <input type="number" [(ngModel)]="newProject.budget" placeholder="0" />
               </div>
               <div class="form-group">
