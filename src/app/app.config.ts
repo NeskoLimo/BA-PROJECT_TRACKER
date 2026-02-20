@@ -1,18 +1,17 @@
 import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { routes } from './app.routes';
+import { provideAnimations } from '@angular/platform-browser/animations'; // Required for Dashboard animations
 
-// Import the services to provide their "values" to the compiler
+import { routes } from './app.routes';
 import { GovernanceService } from './services/governance.service';
-import { AuthService } from './services/auth.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
+    provideAnimations(), // This enables the 'staggerFade' and 'growWidth' animations in your Dashboard
     
-    // Explicitly provide these services to fix TS-992003
-    GovernanceService,
-    AuthService
+    // Explicitly providing the service here fixes the TS-992003 build error
+    GovernanceService 
   ]
 };
