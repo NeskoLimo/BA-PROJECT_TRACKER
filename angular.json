@@ -23,7 +23,7 @@
             "browser": "src/main.ts",
             "polyfills": ["zone.js"],
             "tsConfig": "tsconfig.app.json",
-            "assets": ["src/favicon.ico", "src/assets"],
+            "assets": ["src/favicon.ico", "src/assets", "src/_redirects"],
             "styles": ["src/styles.css"],
             "scripts": []
           },
@@ -58,3 +58,8 @@
     }
   }
 }
+```
+
+The only change is on the assets line — `"src/_redirects"` was added. Now also create `src/_redirects` as a new file with just this one line inside:
+```
+/*    /index.html   200
