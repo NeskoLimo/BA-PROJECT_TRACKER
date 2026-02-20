@@ -221,8 +221,8 @@ interface Project {
                 </div>
               </div>
               <span class="budget-bar-label"
-                [style.color]="currentProject.spent > currentProject.budget ? '#e53e3e' : '#38a169'">
-                {{ ((currentProject.spent / currentProject.budget) * 100).toFixed(0) }}% of budget used
+                [style.color]="(currentProject.spent || 0) > (currentProject.budget || 1) ? '#e53e3e' : '#38a169'">
+                {{ (((currentProject.spent || 0) / (currentProject.budget || 1)) * 100).toFixed(0) }}% of budget used
               </span>
             </div>
 
