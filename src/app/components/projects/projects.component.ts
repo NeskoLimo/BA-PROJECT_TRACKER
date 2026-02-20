@@ -201,7 +201,6 @@ interface Project {
                 <label>Progress (%)</label>
                 <input type="number" [(ngModel)]="currentProject.progress" min="0" max="100" placeholder="0" />
               </div>
-            </div>
             <div class="form-row">
               <div class="form-group">
                 <label>Start Date</label>
