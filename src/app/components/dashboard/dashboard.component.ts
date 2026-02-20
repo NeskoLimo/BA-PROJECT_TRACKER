@@ -1,5 +1,4 @@
-// src/app/components/dashboard/dashboard.component.ts
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
@@ -9,60 +8,64 @@ import { RouterLink } from '@angular/router';
   imports: [CommonModule, RouterLink],
   template: `
     <div class="dashboard">
-
-      <!-- Header -->
       <div class="page-header">
         <div>
-          <h1 class="page-title">Dashboard</h1>
-          <p class="page-subtitle">Overview of all projects and performance</p>
+          <h1 class="page-title">Project Portfolio Overview</h1>
+          <p class="page-subtitle">Strategic performance and financial health</p>
         </div>
         <div class="header-date">{{ today | date:'EEEE, MMMM d, y' }}</div>
       </div>
 
-      <!-- Stat Cards -->
       <div class="stat-cards">
         <div class="stat-card">
-          <div class="stat-icon" style="background:#e8f4fd;">📋</div>
+          <div class="stat-icon blue">📋</div>
           <div class="stat-info">
-            <div class="stat-value">24</div>
+            <div class="stat-value">{{ recentProjects.length }}</div>
             <div class="stat-label">Total Projects</div>
           </div>
-          <div class="stat-change positive">+3 this month</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background:#e8fdf0;">🟢</div>
+          <div class="stat-icon green">🟢</div>
           <div class="stat-info">
-            <div class="stat-value">11</div>
+            <div class="stat-value">{{ getCountByStatus('Active') }}</div>
             <div class="stat-label">Active</div>
           </div>
-          <div class="stat-change positive">+1 this week</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background:#fdf8e8;">🟡</div>
+          <div class="stat-icon red">⚠️</div>
           <div class="stat-info">
-            <div class="stat-value">6</div>
-            <div class="stat-label">On Hold</div>
+            <div class="stat-value">{{ getCountByStatus('At Risk') }}</div>
+            <div class="stat-label">At Risk</div>
           </div>
-          <div class="stat-change neutral">No change</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background:#edf0fd;">✅</div>
+          <div class="stat-icon gold">💰</div>
           <div class="stat-info">
-            <div class="stat-value">7</div>
-            <div class="stat-label">Completed</div>
+            <div class="stat-value">KES {{ totalBudgetBurn | number:'1.0-0' }}M</div>
+            <div class="stat-label">Total Spend</div>
           </div>
-          <div class="stat-change positive">+2 this month</div>
         </div>
       </div>
 
-      <!-- Middle Row: Chart + Deadlines -->
       <div class="middle-row">
+        <div class="card analytics-card">
+          <div class="card-header">
+            <h2 class="card-title">Status Distribution</h2>
+          </div>
+          <div class="analytics-content">
+            <div class="pie-chart" [style.background]="pieChartGradient"></div>
+            <div class="pie-legend">
+              <div class="legend-item"><span class="dot active"></span> Active</div>
+              <div class="legend-item"><span class="dot completed"></span> Completed</div>
+              <div class="legend-item"><span class="dot risk"></span> At Risk</div>
+            </div>
+          </div>
+        </div>
 
-        <!-- PM Success Rate Chart -->
         <div class="card chart-card">
           <div class="card-header">
-            <h2 class="card-title">PM Success Rate</h2>
-            <span class="card-subtitle">by Project Manager</span>
+            <h2 class="card-title">Performance Index</h2>
+            <span class="card-subtitle">PM Success Rate</span>
           </div>
           <div class="bar-chart">
             <div class="bar-row" *ngFor="let pm of pmSuccessRates">
@@ -74,162 +77,142 @@ import { RouterLink } from '@angular/router';
             </div>
           </div>
         </div>
-
-        <!-- Upcoming Deadlines -->
-        <div class="card deadlines-card">
-          <div class="card-header">
-            <h2 class="card-title">Upcoming Deadlines</h2>
-            <span class="card-subtitle">Next 30 days</span>
-          </div>
-          <div class="deadline-list">
-            <div class="deadline-item" *ngFor="let d of upcomingDeadlines">
-              <div class="deadline-dot" [style.background]="d.urgencyColor"></div>
-              <div class="deadline-info">
-                <div class="deadline-name">{{ d.project }}</div>
-                <div class="deadline-meta">{{ d.pm }} · {{ d.date }}</div>
-              </div>
-              <div class="deadline-badge" [style.background]="d.urgencyBg" [style.color]="d.urgencyColor">
-                {{ d.daysLeft }}d
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
-      <!-- Recent Projects -->
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Recent Projects</h2>
-          <a routerLink="/projects" class="card-link">View all →</a>
+          <h2 class="card-title">Recent Portfolio Activity</h2>
+          <a routerLink="/projects" class="card-link">Detailed View →</a>
         </div>
         <table class="projects-table">
           <thead>
             <tr>
               <th>Project Name</th>
-              <th>Type</th>
-              <th>PM</th>
+              <th>Manager</th>
               <th>Status</th>
+              <th>Health</th>
               <th>Progress</th>
-              <th>Due Date</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let p of recentProjects">
               <td class="project-name">{{ p.name }}</td>
-              <td><span class="type-badge">{{ p.type }}</span></td>
               <td>{{ p.pm }}</td>
+              <td><span class="status-badge" [ngClass]="getStatusClass(p.status)">{{ p.status }}</span></td>
               <td>
-                <span class="status-badge" [ngClass]="getStatusClass(p.status)">
-                  {{ p.status }}
-                </span>
+                 <span class="health-indicator" 
+                       [class.healthy]="p.progress >= 50" 
+                       [class.warning]="p.progress < 50 && p.progress > 20"
+                       [class.danger]="p.progress <= 20">
+                 </span>
               </td>
               <td>
-                <div class="progress-bar">
-                  <div class="progress-fill" [style.width.%]="p.progress"></div>
+                <div class="progress-container">
+                  <div class="progress-mini-bar">
+                    <div class="progress-fill" [style.width.%]="p.progress"></div>
+                  </div>
+                  <span>{{ p.progress }}%</span>
                 </div>
-                <span class="progress-label">{{ p.progress }}%</span>
               </td>
-              <td class="due-date">{{ p.due }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-
     </div>
   `,
   styles: [`
-    .dashboard { display: flex; flex-direction: column; gap: 24px; font-family: 'Georgia', serif; color: #1a2332; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; }
-    .page-title { font-size: 26px; font-weight: 700; margin: 0 0 4px; color: #1a2332; }
-    .page-subtitle { font-size: 13px; color: #718096; margin: 0; font-family: sans-serif; }
-    .header-date { font-size: 13px; color: #718096; font-family: sans-serif; padding-top: 6px; }
+    .dashboard { display: flex; flex-direction: column; gap: 24px; font-family: 'Inter', sans-serif; padding: 20px; }
+    .page-title { font-family: 'Georgia', serif; font-size: 28px; }
+    
+    .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+    .stat-icon.blue { background: #e0f2fe; }
+    .stat-icon.green { background: #dcfce7; }
+    .stat-icon.red { background: #fee2e2; }
+    .stat-icon.gold { background: #fef3c7; }
 
-    .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-    .stat-card { background: #fff; border: 1px solid #e8ecf0; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-    .stat-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-    .stat-value { font-size: 28px; font-weight: 700; color: #1a2332; line-height: 1; }
-    .stat-label { font-size: 12px; color: #718096; font-family: sans-serif; margin-top: 2px; }
-    .stat-change { font-size: 11px; font-family: sans-serif; }
-    .stat-change.positive { color: #38a169; }
-    .stat-change.neutral { color: #a0aec0; }
+    .middle-row { display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; }
+    
+    /* Pie Chart Styling */
+    .analytics-content { display: flex; align-items: center; gap: 30px; padding: 10px 0; }
+    .pie-chart {
+      width: 120px; height: 120px; border-radius: 50%;
+      /* Background handled by TypeScript logic */
+    }
+    .pie-legend { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+    .dot.active { background: #22c55e; }
+    .dot.completed { background: #3b82f6; }
+    .dot.risk { background: #ef4444; }
 
-    .card { background: #fff; border: 1px solid #e8ecf0; border-radius: 10px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .card-title { font-size: 16px; font-weight: 700; margin: 0; color: #1a2332; }
-    .card-subtitle { font-size: 12px; color: #a0aec0; font-family: sans-serif; }
-    .card-link { font-size: 13px; color: #1a2332; text-decoration: none; font-family: sans-serif; font-weight: 600; }
-    .card-link:hover { text-decoration: underline; }
+    .health-indicator { width: 12px; height: 12px; border-radius: 50%; display: block; }
+    .healthy { background: #22c55e; box-shadow: 0 0 8px #22c55e66; }
+    .warning { background: #eab308; }
+    .danger { background: #ef4444; }
 
-    .middle-row { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+    .progress-container { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+    .progress-mini-bar { flex: 1; height: 6px; background: #f1f5f9; border-radius: 10px; overflow: hidden; width: 60px;}
+    .progress-fill { height: 100%; background: #0f172a; }
 
-    .bar-chart { display: flex; flex-direction: column; gap: 14px; }
-    .bar-row { display: flex; align-items: center; gap: 12px; }
-    .bar-label { width: 90px; font-size: 13px; color: #4a5568; font-family: sans-serif; flex-shrink: 0; }
-    .bar-track { flex: 1; height: 10px; background: #f0f4f8; border-radius: 99px; overflow: hidden; }
-    .bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
-    .bar-value { width: 36px; font-size: 13px; font-weight: 600; color: #1a2332; font-family: sans-serif; text-align: right; }
-
-    .deadline-list { display: flex; flex-direction: column; gap: 14px; }
-    .deadline-item { display: flex; align-items: center; gap: 12px; }
-    .deadline-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .deadline-info { flex: 1; }
-    .deadline-name { font-size: 13px; font-weight: 600; color: #1a2332; font-family: sans-serif; }
-    .deadline-meta { font-size: 11px; color: #a0aec0; font-family: sans-serif; margin-top: 2px; }
-    .deadline-badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; font-family: sans-serif; }
-
-    .projects-table { width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 13px; }
-    .projects-table th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 700; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e8ecf0; }
-    .projects-table td { padding: 12px; border-bottom: 1px solid #f7f9fc; color: #2d3748; vertical-align: middle; }
-    .projects-table tr:last-child td { border-bottom: none; }
-    .projects-table tr:hover td { background: #f7f9fc; }
-    .project-name { font-weight: 600; color: #1a2332 !important; }
-
-    .type-badge { background: #edf2f7; color: #4a5568; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-    .status-badge { padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
-    .status-active { background: #e8fdf0; color: #38a169; }
-    .status-on-hold { background: #fdf8e8; color: #d69e2e; }
-    .status-completed { background: #e8f4fd; color: #3182ce; }
-    .status-at-risk { background: #fde8e8; color: #e53e3e; }
-
-    .progress-bar { width: 80px; height: 6px; background: #f0f4f8; border-radius: 99px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 6px; }
-    .progress-fill { height: 100%; background: #1a2332; border-radius: 99px; }
-    .progress-label { font-size: 12px; color: #718096; vertical-align: middle; }
-    .due-date { color: #718096 !important; }
+    /* Inherit your existing table and card styles here */
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; }
+    .stat-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 15px; }
+    .stat-value { font-size: 24px; font-weight: 800; }
+    .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .status-active { background: #dcfce7; color: #15803d; }
+    .status-at-risk { background: #fee2e2; color: #b91c1c; }
+    .bar-chart { display: flex; flex-direction: column; gap: 12px; }
+    .bar-row { display: flex; align-items: center; gap: 10px; }
+    .bar-track { flex: 1; height: 8px; background: #f1f5f9; border-radius: 10px; }
+    .bar-label { width: 80px; font-size: 12px; }
+    .projects-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    .projects-table th { text-align: left; font-size: 11px; color: #64748b; padding-bottom: 10px; }
+    .projects-table td { padding: 12px 0; border-top: 1px solid #f1f5f9; font-size: 13px; }
   `]
 })
-export class DashboardComponent {
+export class DashboardComponent implements OnInit {
   today = new Date();
-
-  getStatusClass(status: string): string {
-    const map: Record<string, string> = {
-      'Active': 'status-active', 'On Hold': 'status-on-hold',
-      'Completed': 'status-completed', 'At Risk': 'status-at-risk'
-    };
-    return map[status] || '';
-  }
-
-  pmSuccessRates = [
-    { name: 'Alice M.', rate: 92, color: '#38a169' },
-    { name: 'James K.', rate: 85, color: '#3182ce' },
-    { name: 'Sarah T.', rate: 78, color: '#805ad5' },
-    { name: 'David O.', rate: 71, color: '#d69e2e' },
-    { name: 'Linda N.', rate: 65, color: '#e53e3e' },
-  ];
-
-  upcomingDeadlines = [
-    { project: 'ERP Migration', pm: 'Alice M.', date: 'Feb 25', daysLeft: 5, urgencyColor: '#e53e3e', urgencyBg: '#fde8e8' },
-    { project: 'CRM Integration', pm: 'James K.', date: 'Mar 1', daysLeft: 9, urgencyColor: '#d69e2e', urgencyBg: '#fdf8e8' },
-    { project: 'HR Portal', pm: 'Sarah T.', date: 'Mar 8', daysLeft: 16, urgencyColor: '#d69e2e', urgencyBg: '#fdf8e8' },
-    { project: 'Data Warehouse', pm: 'David O.', date: 'Mar 15', daysLeft: 23, urgencyColor: '#38a169', urgencyBg: '#e8fdf0' },
-    { project: 'Mobile App v2', pm: 'Linda N.', date: 'Mar 20', daysLeft: 28, urgencyColor: '#38a169', urgencyBg: '#e8fdf0' },
-  ];
+  totalBudgetBurn = 4.2; // Derived analytic
 
   recentProjects = [
-    { name: 'ERP System Migration', type: 'IT', pm: 'Alice M.', status: 'Active', progress: 72, due: 'Feb 25, 2026' },
-    { name: 'Customer Portal Redesign', type: 'BA', pm: 'James K.', status: 'Active', progress: 45, due: 'Mar 10, 2026' },
-    { name: 'HR Self-Service Portal', type: 'Mixed', pm: 'Sarah T.', status: 'On Hold', progress: 30, due: 'Mar 8, 2026' },
-    { name: 'Supply Chain Analytics', type: 'BA', pm: 'David O.', status: 'At Risk', progress: 58, due: 'Feb 28, 2026' },
-    { name: 'Mobile App v2 Launch', type: 'IT', pm: 'Linda N.', status: 'Active', progress: 89, due: 'Mar 20, 2026' },
-    { name: 'Compliance Audit System', type: 'Mixed', pm: 'Alice M.', status: 'Completed', progress: 100, due: 'Feb 10, 2026' },
+    { name: 'ERP System Migration', pm: 'Alice M.', status: 'Active', progress: 72 },
+    { name: 'Customer Portal Redesign', pm: 'James K.', status: 'Active', progress: 45 },
+    { name: 'HR Self-Service Portal', pm: 'Sarah T.', status: 'On Hold', progress: 30 },
+    { name: 'Supply Chain Analytics', pm: 'David O.', status: 'At Risk', progress: 18 },
+    { name: 'Mobile App v2 Launch', pm: 'Linda N.', status: 'Active', progress: 89 },
+    { name: 'Compliance Audit System', pm: 'Alice M.', status: 'Completed', progress: 100 }
   ];
+
+  pmSuccessRates = [
+    { name: 'Alice M.', rate: 92, color: '#22c55e' },
+    { name: 'James K.', rate: 85, color: '#3b82f6' },
+    { name: 'Sarah T.', rate: 78, color: '#a855f7' }
+  ];
+
+  pieChartGradient = '';
+
+  ngOnInit() {
+    this.calculatePieChart();
+  }
+
+  getCountByStatus(status: string): number {
+    return this.recentProjects.filter(p => p.status === status).length;
+  }
+
+  calculatePieChart() {
+    const total = this.recentProjects.length;
+    const active = (this.getCountByStatus('Active') / total) * 100;
+    const completed = (this.getCountByStatus('Completed') / total) * 100;
+    const risk = (this.getCountByStatus('At Risk') / total) * 100;
+
+    // Creates a conic gradient for a CSS-only pie chart
+    this.pieChartGradient = `conic-gradient(
+      #22c55e 0% ${active}%, 
+      #3b82f6 ${active}% ${active + completed}%, 
+      #ef4444 ${active + completed}% 100%
+    )`;
+  }
+
+  getStatusClass(status: string): string {
+    return status === 'Active' ? 'status-active' : status === 'At Risk' ? 'status-at-risk' : '';
+  }
 }
