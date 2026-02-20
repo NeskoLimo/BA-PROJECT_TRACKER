@@ -1,119 +1,308 @@
-import { Component } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
-import { GovernanceService, AuditEntry } from '../../services/governance.service';
+import { Component, inject } from '@angular/core';
+import { DatePipe }          from '@angular/common';
+import { GovernanceService, ActionType } from '../../services/governance.service';
 
 @Component({
-  selector: 'app-settings',
-  standalone: true,
-  imports: [CommonModule, DatePipe],
+  selector:    'app-settings',
+  standalone:  true,
+  imports:     [DatePipe],
   template: `
-    <div class="mck-container">
-      <div class="header">
-        <span class="eyebrow">System Administration</span>
-        <h1>Settings & Audit Governance</h1>
-      </div>
+    <div class="page">
 
-      <div class="settings-grid">
-        <div class="mck-card">
-          <h3>User Permissions</h3>
+      <!-- ── Header ─────────────────────────────────────────────────────── -->
+      <header class="page-header">
+        <span class="eyebrow">System Administration</span>
+        <h1>Settings &amp; Audit Governance</h1>
+        <p class="subtitle">Manage permissions, policies, and review the full system audit trail.</p>
+      </header>
+
+      <!-- ── Top grid ───────────────────────────────────────────────────── -->
+      <div class="grid-2">
+
+        <!-- User Permissions card -->
+        <section class="card" aria-labelledby="perm-heading">
+          <h2 id="perm-heading" class="card-title">
+            <span class="card-icon" aria-hidden="true">👤</span>
+            User Permissions
+          </h2>
+
           <div class="user-profile">
-            <div class="avatar">HOD</div>
+            <div class="avatar" aria-hidden="true">{{ gov.userInitials() }}</div>
             <div class="profile-info">
-              <span class="u-name">{{ gov.currentUser.name }}</span>
-              <span class="u-role">Role: {{ gov.currentUser.role }}</span>
+              <strong class="u-name">{{ gov.currentUser().name }}</strong>
+              <span  class="u-role">{{ gov.currentUser().role }}</span>
             </div>
           </div>
-          <ul class="perm-list">
-            <li [class.active]="gov.canEdit()">✅ Can Edit Workstreams</li>
-            <li [class.active]="gov.canDelete()">✅ Can Delete Registry Entries</li>
-            <li [class.active]="gov.isAdmin()">✅ Access to Mass Upload Tools</li>
-          </ul>
-        </div>
 
-        <div class="mck-card">
-          <h3>Active Policy Enforcement</h3>
-          <div class="policy-item">
-            <span class="p-label">Max File Size</span>
-            <span class="p-value">{{ gov.MAX_FILE_SIZE_MB }}MB</span>
+          <ul class="perm-list" aria-label="Permission list">
+            <li class="perm-item" [class.granted]="gov.canEdit()">
+              <span class="perm-indicator" aria-hidden="true">{{ gov.canEdit() ? '✓' : '✗' }}</span>
+              <span class="perm-label">Can Edit Workstreams</span>
+              <span class="perm-badge" [class.yes]="gov.canEdit()" [class.no]="!gov.canEdit()">
+                {{ gov.canEdit() ? 'Granted' : 'Denied' }}
+              </span>
+            </li>
+            <li class="perm-item" [class.granted]="gov.canDelete()">
+              <span class="perm-indicator" aria-hidden="true">{{ gov.canDelete() ? '✓' : '✗' }}</span>
+              <span class="perm-label">Can Delete Registry Entries</span>
+              <span class="perm-badge" [class.yes]="gov.canDelete()" [class.no]="!gov.canDelete()">
+                {{ gov.canDelete() ? 'Granted' : 'Denied' }}
+              </span>
+            </li>
+            <li class="perm-item" [class.granted]="gov.isAdmin()">
+              <span class="perm-indicator" aria-hidden="true">{{ gov.isAdmin() ? '✓' : '✗' }}</span>
+              <span class="perm-label">Access to Mass Upload Tools</span>
+              <span class="perm-badge" [class.yes]="gov.isAdmin()" [class.no]="!gov.isAdmin()">
+                {{ gov.isAdmin() ? 'Granted' : 'Denied' }}
+              </span>
+            </li>
+          </ul>
+        </section>
+
+        <!-- Policy Enforcement card -->
+        <section class="card" aria-labelledby="policy-heading">
+          <h2 id="policy-heading" class="card-title">
+            <span class="card-icon" aria-hidden="true">🛡</span>
+            Active Policy Enforcement
+          </h2>
+
+          <dl class="policy-list">
+            <div class="policy-row">
+              <dt class="p-label">Max File Size</dt>
+              <dd class="p-value">{{ gov.policy().maxFileSizeMb }} MB</dd>
+            </div>
+            <div class="policy-row">
+              <dt class="p-label">Allowed Formats</dt>
+              <dd class="p-value">{{ gov.policy().allowedFormats.join(', ') }}</dd>
+            </div>
+            <div class="policy-row">
+              <dt class="p-label">Phase-Gate Lock</dt>
+              <dd class="p-value">
+                <span class="status-pill"
+                      [class.on]="gov.policy().phaseGateLock"
+                      [class.off]="!gov.policy().phaseGateLock">
+                  {{ gov.policy().phaseGateLock ? '● Enabled' : '○ Disabled' }}
+                </span>
+              </dd>
+            </div>
+          </dl>
+
+          <div class="policy-note">
+            Policy changes require an Admin approval cycle before taking effect.
           </div>
-          <div class="policy-item">
-            <span class="p-label">Allowed Formats</span>
-            <span class="p-value">PDF, DOC, DOCX</span>
-          </div>
-          <div class="policy-item">
-            <span class="p-label">Phase-Gate Lock</span>
-            <span class="p-value status-on">Enabled</span>
-          </div>
-        </div>
+        </section>
       </div>
 
-      <div class="mck-card audit-section">
-        <div class="section-header">
-          <h3>Governance Audit Trail</h3>
-          <button class="btn-export" (click)="exportLog()">Export CSV</button>
+      <!-- ── Audit Trail ─────────────────────────────────────────────────── -->
+      <section class="card audit-card" aria-labelledby="audit-heading">
+        <div class="audit-header">
+          <div>
+            <h2 id="audit-heading" class="card-title">
+              <span class="card-icon" aria-hidden="true">📋</span>
+              Governance Audit Trail
+            </h2>
+            <p class="audit-count">{{ gov.auditLog().length }} events recorded</p>
+          </div>
+          <button class="btn-export"
+                  (click)="exportLog()"
+                  aria-label="Export audit log as CSV">
+            <span aria-hidden="true">↓</span> Export CSV
+          </button>
         </div>
-        <div class="log-container">
+
+        <div class="table-wrapper" role="region" aria-label="Audit log table" tabindex="0">
           <table class="audit-table">
             <thead>
               <tr>
-                <th>Timestamp</th>
-                <th>Action</th>
-                <th>Operator</th>
-                <th>Details</th>
+                <th scope="col">Timestamp</th>
+                <th scope="col">Action</th>
+                <th scope="col">Operator</th>
+                <th scope="col">Details</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let log of gov.auditLog">
-                <td class="time-cell">{{ log.time | date:'HH:mm:ss' }}</td>
-                <td><span class="action-tag" [ngClass]="log.action.toLowerCase()">{{ log.action }}</span></td>
-                <td class="user-cell">{{ log.user }}</td>
-                <td class="detail-cell">{{ log.details }}</td>
-              </tr>
+              @for (entry of gov.auditLog(); track entry.id) {
+                <tr class="audit-row">
+                  <td class="cell-time">
+                    <time [dateTime]="entry.time.toISOString()">
+                      {{ entry.time | date:'HH:mm:ss' }}
+                    </time>
+                  </td>
+                  <td>
+                    <span class="action-tag" [ngClass]="actionClass(entry.action)">
+                      {{ entry.action }}
+                    </span>
+                  </td>
+                  <td class="cell-user">{{ entry.user }}</td>
+                  <td class="cell-detail">{{ entry.details }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4" class="empty-state">No audit events recorded yet.</td>
+                </tr>
+              }
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
+
     </div>
   `,
   styles: [`
-    .mck-container { padding: 40px; background: #f5f7f9; min-height: 100vh; font-family: 'Inter', sans-serif; }
-    .eyebrow { color: #007DFE; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; }
-    
-    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin: 30px 0; }
-    .mck-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 25px; }
-    
-    .user-profile { display: flex; align-items: center; gap: 15px; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9; }
-    .avatar { width: 45px; height: 45px; background: #001E3C; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; }
-    .u-name { display: block; font-weight: 700; color: #001E3C; }
-    .u-role { font-size: 12px; color: #94a3b8; }
+    /* ── Tokens ────────────────────────────────────────────────────────────── */
+    :host {
+      --ink-900:   #0A1628;
+      --ink-700:   #1E3A5F;
+      --ink-500:   #4A6FA5;
+      --ink-300:   #8FAFD4;
+      --ink-100:   #E8EFF7;
+      --ink-050:   #F4F7FB;
 
-    .perm-list { list-style: none; padding: 0; margin-top: 15px; }
-    .perm-list li { padding: 8px 0; font-size: 13px; color: #cbd5e1; }
-    .perm-list li.active { color: #1e293b; font-weight: 600; }
+      --accent:    #0057FF;
+      --accent-lt: #E6EEFF;
 
-    .policy-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
-    .status-on { color: #10b981; font-weight: 800; }
+      --green:     #059669;
+      --green-lt:  #D1FAE5;
+      --red:       #DC2626;
+      --red-lt:    #FEE2E2;
+      --amber:     #D97706;
+      --amber-lt:  #FEF3C7;
+      --sky:       #0284C7;
+      --sky-lt:    #E0F2FE;
+      --violet:    #7C3AED;
+      --violet-lt: #EDE9FE;
 
-    /* Audit Table Styles */
-    .audit-section { margin-top: 20px; }
-    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .btn-export { background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
-    
-    .audit-table { width: 100%; border-collapse: collapse; }
-    .audit-table th { text-align: left; font-size: 11px; color: #94a3b8; text-transform: uppercase; padding-bottom: 15px; }
-    .audit-table td { padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
-    
-    .time-cell { font-family: monospace; color: #64748b; width: 100px; }
-    .action-tag { padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; }
-    .system { background: #e0f2fe; color: #0369a1; }
-    .delete { background: #fef2f2; color: #ef4444; }
-    .upload { background: #ecfdf5; color: #059669; }
+      --radius:    10px;
+      --shadow:    0 1px 3px rgba(10,22,40,.08), 0 4px 16px rgba(10,22,40,.06);
+      --font:      'DM Sans', 'Helvetica Neue', sans-serif;
+      --mono:      'DM Mono', 'Fira Mono', monospace;
+
+      display: block;
+      font-family: var(--font);
+    }
+
+    /* ── Page shell ─────────────────────────────────────────────────────────── */
+    .page {
+      padding: 48px 40px;
+      background: var(--ink-050);
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────────── */
+    .page-header   { margin-bottom: 36px; }
+    .eyebrow       { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); background: var(--accent-lt); padding: 4px 10px; border-radius: 4px; margin-bottom: 12px; }
+    h1             { font-size: 28px; font-weight: 800; color: var(--ink-900); margin: 0 0 6px; letter-spacing: -.5px; }
+    .subtitle      { font-size: 14px; color: var(--ink-500); margin: 0; }
+
+    /* ── Cards ──────────────────────────────────────────────────────────────── */
+    .grid-2   { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .card     { background: #fff; border: 1px solid var(--ink-100); border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow); }
+
+    .card-title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 700; color: var(--ink-700);
+      text-transform: uppercase; letter-spacing: .8px;
+      margin: 0 0 24px;
+    }
+    .card-icon { font-size: 16px; }
+
+    /* ── User profile ───────────────────────────────────────────────────────── */
+    .user-profile { display: flex; align-items: center; gap: 14px; padding-bottom: 20px; border-bottom: 1px solid var(--ink-100); margin-bottom: 20px; }
+    .avatar       { width: 48px; height: 48px; border-radius: 12px; background: var(--ink-900); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; letter-spacing: .5px; flex-shrink: 0; }
+    .u-name       { display: block; font-weight: 700; color: var(--ink-900); font-size: 15px; }
+    .u-role       { display: block; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-top: 2px; }
+
+    /* ── Permission list ────────────────────────────────────────────────────── */
+    .perm-list  { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+    .perm-item  { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: var(--ink-050); border: 1px solid transparent; transition: border-color .15s; }
+    .perm-item.granted { background: var(--green-lt); border-color: #A7F3D0; }
+
+    .perm-indicator { font-size: 13px; font-weight: 800; width: 18px; text-align: center; color: var(--ink-300); }
+    .perm-item.granted .perm-indicator { color: var(--green); }
+
+    .perm-label   { flex: 1; font-size: 13px; font-weight: 500; color: var(--ink-700); }
+    .perm-badge   { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; }
+    .perm-badge.yes { background: var(--green-lt); color: var(--green); }
+    .perm-badge.no  { background: var(--red-lt);   color: var(--red);   }
+
+    /* ── Policy list ────────────────────────────────────────────────────────── */
+    .policy-list { margin: 0 0 16px; padding: 0; }
+    .policy-row  { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--ink-100); }
+    .policy-row:last-child { border-bottom: none; }
+    .p-label     { font-size: 13px; color: var(--ink-500); font-weight: 500; }
+    .p-value     { font-size: 13px; color: var(--ink-900); font-weight: 600; }
+
+    .status-pill    { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+    .status-pill.on  { background: var(--green-lt); color: var(--green); }
+    .status-pill.off { background: var(--red-lt);   color: var(--red);   }
+
+    .policy-note { font-size: 11px; color: var(--ink-300); background: var(--ink-050); border-radius: 6px; padding: 10px 12px; line-height: 1.5; }
+
+    /* ── Audit section ──────────────────────────────────────────────────────── */
+    .audit-card    { }
+    .audit-header  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+    .audit-count   { font-size: 12px; color: var(--ink-300); margin: 4px 0 0; }
+
+    .btn-export {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--ink-900); color: #fff;
+      border: none; padding: 10px 18px; border-radius: 8px;
+      font-size: 12px; font-weight: 700; font-family: var(--font);
+      letter-spacing: .5px; cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .btn-export:hover  { background: var(--ink-700); }
+    .btn-export:active { transform: scale(.97); }
+
+    /* ── Table ──────────────────────────────────────────────────────────────── */
+    .table-wrapper { overflow-x: auto; border-radius: 8px; border: 1px solid var(--ink-100); }
+    .audit-table   { width: 100%; border-collapse: collapse; }
+    .audit-table th { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-300); background: var(--ink-050); padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--ink-100); }
+    .audit-table td { padding: 13px 16px; border-bottom: 1px solid var(--ink-100); vertical-align: middle; }
+    .audit-row:last-child td { border-bottom: none; }
+    .audit-row:hover td { background: var(--ink-050); }
+
+    .cell-time   { font-family: var(--mono); font-size: 12px; color: var(--ink-500); white-space: nowrap; }
+    .cell-user   { font-size: 13px; font-weight: 600; color: var(--ink-700); white-space: nowrap; }
+    .cell-detail { font-size: 13px; color: var(--ink-500); }
+
+    .action-tag {
+      display: inline-block; font-size: 9px; font-weight: 800;
+      letter-spacing: 1px; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 4px;
+    }
+    .tag-system  { background: var(--sky-lt);    color: var(--sky);    }
+    .tag-upload  { background: var(--green-lt);  color: var(--green);  }
+    .tag-delete  { background: var(--red-lt);    color: var(--red);    }
+    .tag-edit    { background: var(--amber-lt);  color: var(--amber);  }
+    .tag-login   { background: var(--violet-lt); color: var(--violet); }
+
+    .empty-state { text-align: center; padding: 48px; color: var(--ink-300); font-size: 14px; }
+
+    /* ── Responsive ─────────────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .page    { padding: 24px 16px; }
+      .grid-2  { grid-template-columns: 1fr; }
+    }
   `]
 })
 export class SettingsComponent {
-  constructor(public gov: GovernanceService) {}
+  protected readonly gov = inject(GovernanceService);
 
-  exportLog() {
-    alert('Generating Audit CSV for HOD Review...');
+  // Maps ActionType → stable CSS class (no fragile toLowerCase() matching)
+  private readonly ACTION_CLASS: Record<string, string> = {
+    SYSTEM: 'tag-system',
+    UPLOAD: 'tag-upload',
+    DELETE: 'tag-delete',
+    EDIT:   'tag-edit',
+    LOGIN:  'tag-login',
+  };
+
+  actionClass(action: ActionType): string {
+    return this.ACTION_CLASS[action] ?? 'tag-system';
+  }
+
+  exportLog(): void {
+    this.gov.exportAsCsv();
   }
 }
