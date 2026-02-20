@@ -1,193 +1,115 @@
-// src/app/services/governance.service.ts
-import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { Injectable, signal, computed } from '@angular/core';
 
-export interface Project {
-  id: string;
-  name: string;
-  category: string;
-  location: string;
-  owner: string;
-  phase: 'Initiation' | 'Planning' | 'Execution' | 'Closure';
-  status: 'Active' | 'Planning' | 'Critical' | 'Closure';
-  budget: number;
-  spent: number;
-  currency: string;
-  startDate: string;
-  projectedEndDate: string;
-  actualEndDate?: string;
-  attachmentUrl?: string;
-  hasAttachment: boolean;
-}
+// ─── Models ───────────────────────────────────────────────────────────────────
 
-export interface MasterPM {
-  name: string;
-  rate: number;
-  department: string;
-  activeProjects: number;
-  lastDelivery: string;
-}
-
-export interface RepositoryDocument {
-  id: string;
-  name: string;
-  category: string;
-  owner: string;
-  status: 'Pending' | 'Approved' | 'Finalized';
-  downloadUrl: string;
-  isTemplate: boolean;
-  nextSignatory?: string;
-}
+export type ActionType = 'SYSTEM' | 'UPLOAD' | 'DELETE' | 'EDIT' | 'LOGIN';
+export type UserRole   = 'HOD' | 'ADMIN' | 'VIEWER' | 'EDITOR';
 
 export interface AuditEntry {
-  time: Date;
-  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'UPLOAD' | 'SYSTEM';
-  user: string;
+  id:      string;
+  time:    Date;
+  action:  ActionType;
+  user:    string;
   details: string;
 }
 
-export interface MasterRegion {
+export interface CurrentUser {
   name: string;
-  currency: string;
-  projectCount: number;
-  status: 'Active' | 'Paused';
+  role: UserRole;
 }
+
+export interface PolicyConfig {
+  maxFileSizeMb:   number;
+  allowedFormats:  string[];
+  phaseGateLock:   boolean;
+}
+
+// ─── Permission matrix ────────────────────────────────────────────────────────
+
+const ROLE_PERMISSIONS: Record<UserRole, { edit: boolean; delete: boolean; admin: boolean }> = {
+  HOD:    { edit: true,  delete: true,  admin: true  },
+  ADMIN:  { edit: true,  delete: true,  admin: true  },
+  EDITOR: { edit: true,  delete: false, admin: false },
+  VIEWER: { edit: false, delete: false, admin: false },
+};
+
+// ─── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
 export class GovernanceService {
 
-  // 1. GOVERNANCE CONSTANTS
-  readonly MAX_FILE_SIZE_MB = 5;
-  readonly ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx'];
+  // ── Public state (signals) ─────────────────────────────────────────────────
 
-  // 2. USER CONTEXT
-  public currentUser = { name: 'Admin User', role: 'ADMIN' };
+  readonly currentUser = signal<CurrentUser>({ name: 'Dr. Amara Osei', role: 'HOD' });
 
-  // 3. PROJECT REGISTRY
-  public projects: Project[] = [
-    {
-      id: 'PRJ-101', name: 'ERP System Migration', category: 'INFRASTRUCTURE', location: 'Kenya',
-      owner: 'Alice M.', phase: 'Execution', status: 'Active', budget: 850000, spent: 612000, currency: 'KES',
-      startDate: '2026-01-01', projectedEndDate: '2026-06-30', hasAttachment: true, attachmentUrl: 'scope_final_v1.pdf'
-    },
-    {
-      id: 'PRJ-102', name: 'Warehouse Expansion', category: 'OPERATIONS', location: 'Uganda',
-      owner: 'James K.', phase: 'Planning', status: 'Planning', budget: 1200000, spent: 0, currency: 'UGX',
-      startDate: '2026-03-15', projectedEndDate: '2026-12-20', hasAttachment: false
-    }
-  ];
+  readonly policy = signal<PolicyConfig>({
+    maxFileSizeMb:  25,
+    allowedFormats: ['PDF', 'DOC', 'DOCX'],
+    phaseGateLock:  true,
+  });
 
-  // 4. RESOURCE REGISTRY
-  public masterPMs: MasterPM[] = [
-    { name: 'Alice M.', rate: 94, department: 'Digital Transformation', activeProjects: 4, lastDelivery: '2 days ago' },
-    { name: 'James K.', rate: 82, department: 'Logistics IT', activeProjects: 2, lastDelivery: '1 week ago' }
-  ];
+  readonly auditLog = signal<AuditEntry[]>(this.#seedLog());
 
-  // 5. AUDIT & REPOSITORY
-  public auditLog: AuditEntry[] = [
-    { time: new Date(), action: 'SYSTEM', user: 'Admin', details: 'Governance registry initialized with RBAC' }
-  ];
+  // ── Derived permissions ────────────────────────────────────────────────────
 
-  public repositoryDocs: RepositoryDocument[] = [
-    { id: 'TMP-01', name: 'Scope Sign-off Template', category: 'Template', owner: 'PMO', status: 'Finalized', downloadUrl: '#', isTemplate: true }
-  ];
+  readonly canEdit   = computed(() => ROLE_PERMISSIONS[this.currentUser().role].edit);
+  readonly canDelete = computed(() => ROLE_PERMISSIONS[this.currentUser().role].delete);
+  readonly isAdmin   = computed(() => ROLE_PERMISSIONS[this.currentUser().role].admin);
 
-  public masterRegions: MasterRegion[] = [
-    { name: 'Kenya', currency: 'KES', projectCount: 12, status: 'Active' },
-    { name: 'Uganda', currency: 'UGX', projectCount: 8, status: 'Active' }
-  ];
+  readonly userInitials = computed(() =>
+    this.currentUser().name
+      .split(' ')
+      .map(w => w[0])
+      .slice(0, 3)
+      .join('')
+      .toUpperCase()
+  );
 
-  // 6. DASHBOARD STREAMS
-  private pmSource = new BehaviorSubject<MasterPM[]>(this.masterPMs);
-  masterPMs$ = this.pmSource.asObservable();
+  // ── Audit helpers ──────────────────────────────────────────────────────────
 
-  constructor() {}
-
-  // 7. GOVERNANCE ENGINES
-
-  /** Calculates progress based on time elapsed vs projected duration */
-  getCalculatedProgress(p: Project): number {
-    const start = new Date(p.startDate).getTime();
-    const end = new Date(p.projectedEndDate).getTime();
-    const now = new Date().getTime();
-    if (now < start) return 0;
-    if (now > end || p.phase === 'Closure') return 100;
-    const total = end - start;
-    const elapsed = now - start;
-    return Math.round((elapsed / total) * 100);
+  logAction(action: ActionType, details: string): void {
+    const entry: AuditEntry = {
+      id:      crypto.randomUUID(),
+      time:    new Date(),
+      action,
+      user:    this.currentUser().name,
+      details,
+    };
+    this.auditLog.update(log => [entry, ...log]);
   }
 
-  /** Gatekeeper: Blocks project if scope attachment is missing in Planning */
-  canMoveToExecution(p: Project): boolean {
-    return !(p.phase === 'Planning' && !p.hasAttachment);
+  exportAsCsv(): void {
+    const headers = ['Timestamp', 'Action', 'Operator', 'Details'];
+    const rows = this.auditLog().map(e => [
+      e.time.toISOString(),
+      e.action,
+      `"${e.user}"`,
+      `"${e.details.replace(/"/g, '""')}"`,
+    ]);
+
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+
+    const anchor      = document.createElement('a');
+    anchor.href       = url;
+    anchor.download   = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+    this.logAction('SYSTEM', 'Audit log exported as CSV');
   }
 
-  /** Compliance: Validates file type and size */
-  validateAttachment(file: File): { valid: boolean; error?: string } {
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    const sizeMB = file.size / (1024 * 1024);
-    if (!this.ALLOWED_EXTENSIONS.includes(extension || '')) {
-      return { valid: false, error: 'File must be PDF, DOC, or DOCX.' };
-    }
-    if (sizeMB > this.MAX_FILE_SIZE_MB) {
-      return { valid: false, error: `File exceeds ${this.MAX_FILE_SIZE_MB}MB limit.` };
-    }
-    return { valid: true };
-  }
+  // ── Seed data ──────────────────────────────────────────────────────────────
 
-  // 8. PERMISSION ENGINE
-  isAdmin(): boolean { return this.currentUser.role === 'ADMIN'; }
-  canEdit(): boolean { return this.isAdmin() || this.currentUser.role === 'PMO'; }
-  canDelete(): boolean { return this.isAdmin(); } // ← was missing
-
-  // 9. PROJECT CRUD ENGINE
-
-  /** Delete project by ID and log to audit */
-  deleteProject(id: string): void {
-    const project = this.projects.find(p => p.id === id);
-    if (project) {
-      this.projects = this.projects.filter(p => p.id !== id);
-      this.auditLog.unshift({
-        time: new Date(),
-        action: 'DELETE',
-        user: this.currentUser.name,
-        details: `Removed project "${project.name}" (${id}) from registry`
-      });
-    }
-  }
-
-  /** Add project and log to audit */
-  addProject(project: Project): void {
-    this.projects.unshift(project);
-    this.auditLog.unshift({
-      time: new Date(),
-      action: 'CREATE',
-      user: this.currentUser.name,
-      details: `Created project "${project.name}" in ${project.location}`
-    });
-  }
-
-  /** Update project and log to audit */
-  updateProject(updated: Project): void {
-    const idx = this.projects.findIndex(p => p.id === updated.id);
-    if (idx > -1) {
-      this.projects[idx] = updated;
-      this.auditLog.unshift({
-        time: new Date(),
-        action: 'UPDATE',
-        user: this.currentUser.name,
-        details: `Updated project "${updated.name}" — phase: ${updated.phase}, status: ${updated.status}`
-      });
-    }
-  }
-
-  /** Log file upload to audit */
-  logUpload(projectName: string, filename: string): void {
-    this.auditLog.unshift({
-      time: new Date(),
-      action: 'UPLOAD',
-      user: this.currentUser.name,
-      details: `Uploaded "${filename}" to project "${projectName}"`
-    });
+  #seedLog(): AuditEntry[] {
+    const base = Date.now();
+    return [
+      { id: '1', time: new Date(base - 120_000), action: 'LOGIN',  user: 'Dr. Amara Osei',   details: 'Session started from 196.201.xx.xx'      },
+      { id: '2', time: new Date(base -  90_000), action: 'UPLOAD', user: 'Dr. Amara Osei',   details: 'Uploaded Q3-Budget-Final.pdf (18.2 MB)'   },
+      { id: '3', time: new Date(base -  60_000), action: 'EDIT',   user: 'Kwame Mensah',      details: 'Modified workstream: Procurement Reform'  },
+      { id: '4', time: new Date(base -  30_000), action: 'DELETE', user: 'Dr. Amara Osei',   details: 'Removed registry entry #REG-0042'         },
+      { id: '5', time: new Date(base -  10_000), action: 'SYSTEM', user: 'System',            details: 'Phase-gate lock applied to WS-07'         },
+    ];
   }
 }
