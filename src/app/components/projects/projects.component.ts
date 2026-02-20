@@ -103,7 +103,7 @@ interface Project {
               <td>
                 <span class="priority-badge" [ngClass]="getPriorityClass(p.priority)">{{ p.priority }}</span>
               </td>
-              <td class="budget">{{ p.budget | currency:'KSH.':'symbol':'1.0-0' }}</td>
+              <td class="budget">{{ p.budget | currency:'KES.':'symbol':'1.0-0' }}</td>
               <td>
                 <div class="progress-wrap">
                   <div class="progress-bar">
