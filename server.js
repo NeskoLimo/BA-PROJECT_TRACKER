@@ -3,7 +3,7 @@ const path    = require('path');
 
 const app  = express();
 const PORT = process.env.PORT || 4000;
-const DIST = path.join(__dirname, 'dist', 'ba-project-tracker', 'browser');
+const DIST = path.join(__dirname, 'dist', 'ba-project-tracker');
 
 // Serve static build output
 app.use(express.static(DIST, { maxAge: '1d' }));
