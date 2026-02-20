@@ -12,7 +12,8 @@ import { GovernanceService, Project } from '../../services/governance.service';
     <div class="mck-container">
       <div class="header-section">
         <div class="title-group">
-          <span class="eyebrow">Governance Registry • {{gov.currentUser.role}}</span>
+          <!-- FIX: gov.currentUser is now a signal — call it as gov.currentUser() -->
+          <span class="eyebrow">Governance Registry • {{gov.currentUser().role}}</span>
           <h1>Workstream Portfolio</h1>
           <p>Enforcing phase-gate compliance and time-based performance metrics.</p>
         </div>
@@ -100,7 +101,7 @@ import { GovernanceService, Project } from '../../services/governance.service';
                 </div>
               </td>
 
-              <!-- Scope (compact) -->
+              <!-- Scope -->
               <td class="col-scope">
                 <div *ngIf="p.hasAttachment" class="file-pill" [title]="p.attachmentUrl || ''">
                   📄 <span class="file-name">{{p.attachmentUrl}}</span>
@@ -113,7 +114,7 @@ import { GovernanceService, Project } from '../../services/governance.service';
                 <span *ngIf="!p.hasAttachment && !gov.canEdit()" class="no-attachment">—</span>
               </td>
 
-              <!-- Phase (was Gate) -->
+              <!-- Phase -->
               <td class="col-phase">
                 <span class="phase-badge" [ngClass]="p.phase.toLowerCase()">{{p.phase}}</span>
               </td>
@@ -126,7 +127,7 @@ import { GovernanceService, Project } from '../../services/governance.service';
 
               <!-- Actions -->
               <td class="col-actions" *ngIf="gov.canEdit()">
-                <button class="icon-btn" title="Edit" >✏️</button>
+                <button class="icon-btn" title="Edit">✏️</button>
                 <button class="icon-btn del" *ngIf="gov.canDelete()" (click)="deleteProject(p.id)" title="Delete">🗑️</button>
               </td>
 
@@ -146,91 +147,53 @@ import { GovernanceService, Project } from '../../services/governance.service';
     .title-group p { font-size: 12px; color: #718096; margin: 0; }
     .eyebrow { color: #007DFE; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
     .action-group { display: flex; gap: 8px; align-items: center; }
-
     .filter-strip { margin-bottom: 16px; }
     .search-wrap { position: relative; max-width: 400px; }
     .search-icon { position: absolute; left: 12px; top: 10px; color: #94a3b8; font-size: 13px; }
     .search-wrap input { width: 100%; padding: 9px 12px 9px 36px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box; }
     .search-wrap input:focus { border-color: #007DFE; }
-
-    /* Table wrapper allows horizontal scroll on very small screens */
     .table-wrapper { background: white; border-radius: 8px; border: 1px solid #e2e8f0; overflow-x: auto; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
     .mck-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-
-    /* Column widths — tuned to fit screen */
-    .col-project  { width: 22%; }
-    .col-dates    { width: 20%; }
-    .col-progress { width: 14%; }
-    .col-scope    { width: 12%; }
-    .col-phase    { width: 10%; }
-    .col-status   { width: 12%; }
-    .col-actions  { width: 7%; }
-
+    .col-project  { width: 22%; } .col-dates    { width: 20%; } .col-progress { width: 14%; }
+    .col-scope    { width: 12%; } .col-phase    { width: 10%; } .col-status   { width: 12%; } .col-actions  { width: 7%; }
     .mck-table th { padding: 10px 12px; background: #f8fafc; text-align: left; font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #f1f5f9; font-weight: 700; white-space: nowrap; }
     .mck-table td { padding: 12px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vertical-align: top; color: #2d3748; }
     .mck-table tr:last-child td { border-bottom: none; }
     .row-critical td { background: #fff8f8; }
-
     .p-name { font-weight: 700; color: #1a2332; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .p-meta { font-size: 11px; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    /* Date inputs */
     .date-field { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
     .date-label { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; width: 34px; flex-shrink: 0; }
-    .date-input {
-      padding: 3px 6px; border: 1px solid #e2e8f0; border-radius: 4px;
-      font-size: 11px; color: #1a2332; outline: none; width: 72px;
-      font-family: 'Courier New', monospace; background: #f8fafc;
-    }
+    .date-input { padding: 3px 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; color: #1a2332; outline: none; width: 72px; font-family: 'Courier New', monospace; background: #f8fafc; }
     .date-input:focus { border-color: #007DFE; background: #fff; }
     .date-input[readonly] { color: #94a3b8; cursor: default; }
     .date-input.actual-set { color: #10b981; border-color: #a7f3d0; background: #f0fdf4; }
     .date-error { font-size: 10px; color: #ef4444; margin-top: 2px; }
-
-    /* Progress */
     .prog-wrapper { display: flex; align-items: center; gap: 6px; }
     .prog-track { flex: 1; height: 5px; background: #e2e8f0; border-radius: 10px; overflow: hidden; min-width: 50px; }
     .prog-fill { height: 100%; transition: width 0.4s; }
     .prog-text { font-size: 11px; font-weight: 700; color: #64748b; white-space: nowrap; }
-    .health-good { background: #10b981; }
-    .health-warn { background: #f59e0b; }
-    .health-crit { background: #ef4444; }
-
-    /* Scope — compact */
+    .health-good { background: #10b981; } .health-warn { background: #f59e0b; } .health-crit { background: #ef4444; }
     .file-pill { display: flex; align-items: center; gap: 4px; background: #f0f9ff; color: #0369a1; padding: 3px 7px; border-radius: 4px; border: 1px solid #bae6fd; font-size: 11px; max-width: 100%; }
     .file-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60px; }
     .upload-label { color: #007DFE; font-weight: 600; cursor: pointer; font-size: 12px; text-decoration: underline; white-space: nowrap; }
     .remove-file { cursor: pointer; color: #ef4444; font-weight: bold; font-size: 13px; flex-shrink: 0; }
     .no-attachment { color: #cbd5e0; }
-
-    /* Phase badge — compact */
     .phase-badge { padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; white-space: nowrap; display: inline-block; }
-    .initiation { background: #f1f5f9; color: #64748b; }
-    .planning   { background: #f1f5f9; color: #475569; }
-    .execution  { background: #e0f2fe; color: #0369a1; }
-    .closure    { background: #f0fdf4; color: #166534; }
-
-    /* Status — dot + short text */
+    .initiation { background: #f1f5f9; color: #64748b; } .planning { background: #f1f5f9; color: #475569; }
+    .execution  { background: #e0f2fe; color: #0369a1; } .closure  { background: #f0fdf4; color: #166534; }
     .col-status td, .col-status { vertical-align: middle; }
     .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; flex-shrink: 0; }
     .status-text { font-size: 11px; font-weight: 600; vertical-align: middle; }
-    .active .status-dot, span.active    { background: #10b981; }
-    .critical .status-dot, span.critical { background: #ef4444; }
-    .planning .status-dot               { background: #94a3b8; }
-    .closure .status-dot                { background: #166534; }
-    span.active   { color: #10b981; }
-    span.critical { color: #ef4444; }
-
-    /* Actions */
+    .active   { background: #10b981; } .critical { background: #ef4444; }
+    span.active   { color: #10b981; } span.critical { color: #ef4444; }
     .col-actions { text-align: center; vertical-align: middle !important; }
     .icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 3px; border-radius: 4px; transition: transform 0.15s; }
     .icon-btn:hover { transform: scale(1.2); background: #f7f9fc; }
-
     .btn-main { background: #001E3C; color: white; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-block; font-size: 12px; border: none; }
     .btn-main:hover { background: #1a2332; }
     .btn-sec { background: white; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; }
     .btn-sec:hover { background: #f7f9fc; }
-
     .empty-state { text-align: center; color: #a0aec0; padding: 40px !important; font-size: 13px; }
   `]
 })
@@ -244,7 +207,8 @@ export class ProjectsComponent implements OnInit {
   ngOnInit() { this.applyFilters(); }
 
   applyFilters() {
-    this.filteredProjects = this.gov.projects.filter(p =>
+    // FIX: added explicit type (p: Project) to resolve TS7006 implicit any
+    this.filteredProjects = this.gov.projects.filter((p: Project) =>
       p.name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
       p.owner.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
       p.location.toLowerCase().includes(this.searchTerm.toLowerCase())
@@ -281,8 +245,8 @@ export class ProjectsComponent implements OnInit {
     if (!input) return;
     const parsed = this.parseDate(input);
     if (!parsed) { this.dateErrors[p.id] = 'Use DD/MM/YY format'; return; }
-    if (field === 'startDate' && p.projectedEndDate && parsed >= p.projectedEndDate) { this.dateErrors[p.id] = 'Start must be before projected end'; return; }
-    if (field === 'projectedEndDate' && p.startDate && parsed <= p.startDate) { this.dateErrors[p.id] = 'Projected end must be after start'; return; }
+    if (field === 'startDate'        && p.projectedEndDate && parsed >= p.projectedEndDate) { this.dateErrors[p.id] = 'Start must be before projected end'; return; }
+    if (field === 'projectedEndDate' && p.startDate        && parsed <= p.startDate)        { this.dateErrors[p.id] = 'Projected end must be after start';  return; }
     delete this.dateErrors[p.id];
     (p as any)[field] = parsed;
     this.gov.updateProject(p);
@@ -299,8 +263,8 @@ export class ProjectsComponent implements OnInit {
     if (!file) return;
     const v = this.gov.validateAttachment(file);
     if (v.valid) {
-      p.hasAttachment = true;
-      p.attachmentUrl = file.name;
+      p.hasAttachment  = true;
+      p.attachmentUrl  = file.name;
       if (p.phase === 'Planning') { p.phase = 'Execution'; p.status = 'Active'; }
       this.gov.logUpload(p.name, file.name);
     } else { alert(v.error); }
@@ -310,7 +274,7 @@ export class ProjectsComponent implements OnInit {
     if (!confirm(`Remove attachment from "${p.name}"?`)) return;
     p.hasAttachment = false;
     p.attachmentUrl = undefined;
-    p.phase = 'Planning';
+    p.phase  = 'Planning';
     p.status = 'Planning';
   }
 
@@ -321,6 +285,6 @@ export class ProjectsComponent implements OnInit {
     }
   }
 
-  onMassUpload(event: Event) { alert('Mass Upload Triggered. Validating Template...'); }
-  onDownloadTemplate() { alert('Downloading Master Template...'); }
+  onMassUpload(event: Event)  { alert('Mass Upload Triggered. Validating Template...'); }
+  onDownloadTemplate()        { alert('Downloading Master Template...'); }
 }
