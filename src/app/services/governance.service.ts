@@ -8,18 +8,20 @@ export interface ProjectStats { assigned: number; unassigned: number; total: num
 
 @Injectable({ providedIn: 'root' })
 export class GovernanceService {
-  // Restore masterRegions for the Reports page
   public masterRegions: MasterRegion[] = [
     { name: 'Kenya', currency: 'KES', projectCount: 12, status: 'Active' },
-    { name: 'Uganda', currency: 'UGX', projectCount: 8, status: 'Active' },
-    { name: 'Tanzania', currency: 'TZS', projectCount: 5, status: 'Paused' }
+    { name: 'Uganda', currency: 'UGX', projectCount: 8, status: 'Active' }
   ];
 
-  // Restore masterPMs for the Settings page
   public masterPMs: MasterPM[] = [
     { name: 'Alice M.', rate: 92, department: 'Infrastructure', projectsActive: 5 },
     { name: 'James K.', rate: 85, department: 'Software', projectsActive: 3 },
     { name: 'Sarah T.', rate: 78, department: 'Operations', projectsActive: 4 }
+  ];
+
+  // Restoring the property that caused the NG9 error
+  public auditLog: any[] = [
+    { timestamp: new Date(), user: 'NeskoLimo', action: 'SYSTEM_INIT', details: 'McKinsey Theme Applied' }
   ];
 
   private pmSource = new BehaviorSubject<MasterPM[]>(this.masterPMs);
@@ -38,6 +40,12 @@ export class GovernanceService {
     const pm = this.masterPMs.find(p => p.name === name);
     if (pm) {
       pm.rate = newRate;
+      this.auditLog.unshift({ 
+        timestamp: new Date(), 
+        user: this.currentUser.name, 
+        action: 'RATE_UPDATE', 
+        details: `${name} set to ${newRate}%` 
+      });
       this.pmSource.next([...this.masterPMs]);
     }
   }
