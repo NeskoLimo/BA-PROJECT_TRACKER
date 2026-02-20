@@ -1,11 +1,10 @@
 services:
   - type: web
     name: ba-project-tracker
-    env: node
-    plan: free
+    env: static
     buildCommand: npm install && npm run build
-    startCommand: node server.js
-    healthCheckPath: /
-    envVars:
-      - key: NODE_ENV
-        value: production
+    staticPublishPath: dist/ba-project-tracker
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
