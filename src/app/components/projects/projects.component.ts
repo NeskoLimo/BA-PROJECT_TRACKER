@@ -29,7 +29,7 @@ import { GovernanceService, Project } from '../../services/governance.service';
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
           <input type="text" [(ngModel)]="searchTerm" (input)="applyFilters()"
-                 placeholder="Search by name, owner, or location (Kenya, Uganda, etc.)...">
+                 placeholder="Search by name, owner, or location...">
         </div>
       </div>
 
@@ -48,17 +48,53 @@ import { GovernanceService, Project } from '../../services/governance.service';
           </thead>
           <tbody>
             <tr *ngFor="let p of filteredProjects" [class.row-critical]="p.status === 'Critical'">
+
+              <!-- Project Details -->
               <td>
                 <div class="p-name">{{p.name}}</div>
                 <div class="p-meta">{{p.owner}} | {{p.location}}</div>
               </td>
+
+              <!-- Registry Timelines — Editable -->
               <td class="date-cell">
-                <div><small>Start:</small> {{p.startDate}}</div>
-                <div><small>Proj:</small> {{p.projectedEndDate}}</div>
-                <div *ngIf="p.actualEndDate" class="actual-date">
-                  <small>Actual:</small> {{p.actualEndDate}}
+                <div class="date-field">
+                  <label class="date-label">Start</label>
+                  <input class="date-input"
+                    type="text"
+                    [value]="formatDate(p.startDate)"
+                    (blur)="onDateChange($event, p, 'startDate')"
+                    (keydown.enter)="onDateChange($event, p, 'startDate')"
+                    placeholder="DD/MM/YY"
+                    maxlength="8"
+                    [readonly]="!gov.canEdit()" />
                 </div>
+                <div class="date-field">
+                  <label class="date-label">Proj. End</label>
+                  <input class="date-input"
+                    type="text"
+                    [value]="formatDate(p.projectedEndDate)"
+                    (blur)="onDateChange($event, p, 'projectedEndDate')"
+                    (keydown.enter)="onDateChange($event, p, 'projectedEndDate')"
+                    placeholder="DD/MM/YY"
+                    maxlength="8"
+                    [readonly]="!gov.canEdit()" />
+                </div>
+                <div class="date-field">
+                  <label class="date-label">Actual End</label>
+                  <input class="date-input"
+                    [class.actual-set]="p.actualEndDate"
+                    type="text"
+                    [value]="p.actualEndDate ? formatDate(p.actualEndDate) : ''"
+                    (blur)="onDateChange($event, p, 'actualEndDate')"
+                    (keydown.enter)="onDateChange($event, p, 'actualEndDate')"
+                    placeholder="DD/MM/YY"
+                    maxlength="8"
+                    [readonly]="!gov.canEdit()" />
+                </div>
+                <div class="date-error" *ngIf="dateErrors[p.id]">⚠️ {{ dateErrors[p.id] }}</div>
               </td>
+
+              <!-- Calculated Progress -->
               <td>
                 <div class="prog-wrapper">
                   <div class="prog-track">
@@ -69,6 +105,8 @@ import { GovernanceService, Project } from '../../services/governance.service';
                   <span class="prog-text">{{ gov.getCalculatedProgress(p) }}%</span>
                 </div>
               </td>
+
+              <!-- Sign-off Scope -->
               <td>
                 <div class="upload-zone" [class.valid]="p.hasAttachment">
                   <div *ngIf="p.hasAttachment" class="file-pill">
@@ -83,18 +121,25 @@ import { GovernanceService, Project } from '../../services/governance.service';
                   <span *ngIf="!p.hasAttachment && !gov.canEdit()" class="no-attachment">—</span>
                 </div>
               </td>
+
+              <!-- Gate -->
               <td>
                 <span class="gate-badge" [ngClass]="p.phase.toLowerCase()">{{p.phase}}</span>
               </td>
+
+              <!-- Status -->
               <td>
                 <span class="status-badge" [ngClass]="p.status.toLowerCase()">{{p.status}}</span>
               </td>
+
+              <!-- Actions -->
               <td *ngIf="gov.canEdit()">
                 <div class="action-btns">
                   <button class="icon-btn edit" title="Edit project">✏️</button>
                   <button *ngIf="gov.canDelete()" (click)="deleteProject(p.id)" class="icon-btn del" title="Delete project">🗑️</button>
                 </div>
               </td>
+
             </tr>
             <tr *ngIf="filteredProjects.length === 0">
               <td colspan="7" class="empty-state">No projects match your search.</td>
@@ -121,15 +166,28 @@ import { GovernanceService, Project } from '../../services/governance.service';
     .mck-card { background: white; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
     .mck-table { width: 100%; border-collapse: collapse; }
     .mck-table th { padding: 15px 20px; background: #f8fafc; text-align: left; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #f1f5f9; font-weight: 700; }
-    .mck-table td { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 14px; vertical-align: middle; color: #2d3748; }
+    .mck-table td { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; font-size: 14px; vertical-align: top; color: #2d3748; }
     .mck-table tr:last-child td { border-bottom: none; }
     .row-critical td { background: #fff1f2; }
 
     .p-name { font-weight: 700; color: #1a2332; margin-bottom: 3px; }
     .p-meta { font-size: 12px; color: #94a3b8; }
-    .date-cell div { font-size: 12px; color: #64748b; margin-bottom: 3px; }
-    .date-cell small { color: #94a3b8; margin-right: 4px; }
-    .actual-date { color: #38a169 !important; }
+
+    /* Date Fields */
+    .date-cell { min-width: 160px; }
+    .date-field { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .date-field:last-of-type { margin-bottom: 0; }
+    .date-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; width: 52px; flex-shrink: 0; }
+    .date-input {
+      padding: 5px 8px; border: 1px solid #e2e8f0; border-radius: 5px;
+      font-size: 12px; color: #1a2332; outline: none; width: 80px;
+      font-family: 'Courier New', monospace; letter-spacing: 0.5px;
+      background: #f8fafc; transition: border 0.15s;
+    }
+    .date-input:focus { border-color: #007DFE; background: #fff; }
+    .date-input[readonly] { background: #f8fafc; color: #94a3b8; cursor: default; }
+    .date-input.actual-set { color: #10b981; border-color: #a7f3d0; background: #f0fdf4; }
+    .date-error { font-size: 11px; color: #ef4444; margin-top: 4px; }
 
     .prog-wrapper { display: flex; align-items: center; gap: 10px; }
     .prog-track { flex: 1; height: 6px; background: #e2e8f0; border-radius: 10px; overflow: hidden; min-width: 80px; }
@@ -153,7 +211,6 @@ import { GovernanceService, Project } from '../../services/governance.service';
     .file-pill { background: #f0f9ff; color: #0369a1; padding: 5px 10px; border-radius: 4px; border: 1px solid #bae6fd; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
     .upload-label { color: #007DFE; font-weight: 600; cursor: pointer; font-size: 13px; text-decoration: underline; }
     .remove-file { cursor: pointer; color: #ef4444; font-weight: bold; font-size: 14px; }
-    .remove-file:hover { color: #b91c1c; }
     .no-attachment { color: #cbd5e0; }
 
     .btn-main { background: #001E3C; color: white; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-block; font-size: 13px; border: none; }
@@ -170,6 +227,7 @@ import { GovernanceService, Project } from '../../services/governance.service';
 export class ProjectsComponent implements OnInit {
   filteredProjects: Project[] = [];
   searchTerm: string = '';
+  dateErrors: Record<string, string> = {};
 
   constructor(public gov: GovernanceService) {}
 
@@ -181,6 +239,64 @@ export class ProjectsComponent implements OnInit {
       p.owner.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
       p.location.toLowerCase().includes(this.searchTerm.toLowerCase())
     );
+  }
+
+  // Convert ISO/YYYY-MM-DD to DD/MM/YY for display
+  formatDate(dateStr: string | undefined): string {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${dd}/${mm}/${yy}`;
+  }
+
+  // Parse DD/MM/YY input back to ISO string
+  parseDate(input: string): string | null {
+    const clean = input.trim();
+    // Accept DD/MM/YY or DD/MM/YYYY
+    const match = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (!match) return null;
+    let [, dd, mm, yy] = match;
+    const year = yy.length === 2 ? `20${yy}` : yy;
+    const date = new Date(`${year}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`);
+    if (isNaN(date.getTime())) return null;
+    return date.toISOString().split('T')[0];
+  }
+
+  onDateChange(event: Event, p: Project, field: 'startDate' | 'projectedEndDate' | 'actualEndDate') {
+    const input = (event.target as HTMLInputElement).value.trim();
+
+    // Allow clearing actual end date
+    if (field === 'actualEndDate' && input === '') {
+      p.actualEndDate = undefined;
+      delete this.dateErrors[p.id];
+      this.gov.updateProject(p);
+      return;
+    }
+
+    if (!input) return;
+
+    const parsed = this.parseDate(input);
+    if (!parsed) {
+      this.dateErrors[p.id] = `Invalid date — use DD/MM/YY`;
+      return;
+    }
+
+    // Validate: start must be before projected end
+    if (field === 'startDate' && p.projectedEndDate && parsed >= p.projectedEndDate) {
+      this.dateErrors[p.id] = 'Start date must be before projected end date';
+      return;
+    }
+    if (field === 'projectedEndDate' && p.startDate && parsed <= p.startDate) {
+      this.dateErrors[p.id] = 'Projected end must be after start date';
+      return;
+    }
+
+    delete this.dateErrors[p.id];
+    (p as any)[field] = parsed;
+    this.gov.updateProject(p);
   }
 
   getHealthClass(p: Project): string {
