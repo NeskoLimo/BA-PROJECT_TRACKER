@@ -1,4 +1,3 @@
-// src/app/components/sidebar/sidebar.component.ts
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
@@ -17,6 +16,12 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
           <span class="nav-icon">📁</span>
           <span class="nav-label">Projects</span>
         </a>
+        
+        <a routerLink="/repository" routerLinkActive="active" class="nav-item">
+          <span class="nav-icon">📚</span>
+          <span class="nav-label">Repository</span>
+        </a>
+
         <a routerLink="/reports" routerLinkActive="active" class="nav-item">
           <span class="nav-icon">📈</span>
           <span class="nav-label">Reports</span>
@@ -27,7 +32,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
         </a>
       </nav>
       <div class="sidebar-footer">
-        <div class="version">v1.0.0</div>
+        <div class="version">v1.1.0</div>
       </div>
     </aside>
   `,
