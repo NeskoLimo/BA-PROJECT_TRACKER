@@ -464,7 +464,7 @@ interface RegionSummary {
     <div class="panel tbl-panel" *ngIf="rawView === 'projects'">
       <div class="raw-meta">
         Showing {{ filteredRawProjects().length }} of {{ gov.projects.length }} records ·
-        <span class="raw-schema">Schema: projects@v1 · {{ gov.projects.length > 0 ? 'DB-ready' : '' }}</span>
+        <span class="raw-schema">Schema: projects&#64;v1 · {{ gov.projects.length > 0 ? 'DB-ready' : '' }}</span>
       </div>
       <div class="raw-scroll">
         <table class="data-table raw-table">
@@ -506,7 +506,7 @@ interface RegionSummary {
     <div class="panel tbl-panel" *ngIf="rawView === 'audit'">
       <div class="raw-meta">
         Showing {{ filteredRawAudit().length }} of {{ gov.auditLog.length }} records ·
-        <span class="raw-schema">Schema: audit_log@v1</span>
+        <span class="raw-schema">Schema: audit_log&#64;v1</span>
       </div>
       <div class="raw-scroll">
         <table class="data-table raw-table">
