@@ -1,4 +1,5 @@
 import { Injectable, signal, computed } from '@angular/core';
+import { BehaviorSubject } from 'rxjs';
 
 // ─── Models ────────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,14 @@ export interface ValidationResult {
   error?: string;
 }
 
+export interface MasterPM {
+  id:       string;
+  name:     string;
+  region:   string;
+  projects: number;
+  status:   'Active' | 'On Leave' | 'Inactive';
+}
+
 // ─── Permission matrix ────────────────────────────────────────────────────────
 
 const ROLE_PERMISSIONS: Record<UserRole, { edit: boolean; delete: boolean; admin: boolean }> = {
@@ -78,6 +87,16 @@ export class GovernanceService {
     allowedFormats: ['PDF', 'DOC', 'DOCX'],
     phaseGateLock:  true,
   });
+
+  // ── RxJS observable for dashboard (legacy subscribe() pattern) ─────────────
+
+  readonly masterPMs$ = new BehaviorSubject<MasterPM[]>([
+    { id: 'PM-01', name: 'Alice M.',   region: 'East Africa',     projects: 3, status: 'Active'   },
+    { id: 'PM-02', name: 'James K.',   region: 'East Africa',     projects: 2, status: 'Active'   },
+    { id: 'PM-03', name: 'Kwame M.',   region: 'West Africa',     projects: 3, status: 'Active'   },
+    { id: 'PM-04', name: 'Nadia T.',   region: 'Southern Africa', projects: 4, status: 'On Leave' },
+    { id: 'PM-05', name: 'Omar F.',    region: 'North Africa',    projects: 2, status: 'Inactive' },
+  ]);
 
   // ── Derived permissions (signals) ─────────────────────────────────────────
 
