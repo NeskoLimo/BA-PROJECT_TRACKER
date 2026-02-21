@@ -6,90 +6,95 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   standalone: true,
   imports: [RouterLink, RouterLinkActive],
   template: `
-    <aside class="sidebar">
-      <nav class="sidebar-nav">
-        <a routerLink="/dashboard" routerLinkActive="active" class="nav-item">
-          <span class="nav-icon">🏠</span>
-          <span class="nav-label">Dashboard</span>
+    <aside class="sidebar-container">
+      <nav class="nav-stack">
+        <a routerLink="/dashboard" routerLinkActive="active-link" class="nav-anchor">
+          <span class="icon-slot">🏠</span>
+          <span class="label-slot">Dashboard</span>
         </a>
-        <a routerLink="/projects" routerLinkActive="active" class="nav-item">
-          <span class="nav-icon">📁</span>
-          <span class="nav-label">Projects</span>
+        <a routerLink="/projects" routerLinkActive="active-link" class="nav-anchor">
+          <span class="icon-slot">📁</span>
+          <span class="label-slot">Projects</span>
         </a>
         
-        <a routerLink="/repository" routerLinkActive="active" class="nav-item">
-          <span class="nav-icon">📚</span>
-          <span class="nav-label">Repository</span>
+        <a routerLink="/repository" routerLinkActive="active-link" class="nav-anchor">
+          <span class="icon-slot">📚</span>
+          <span class="label-slot">Repository</span>
         </a>
 
-        <a routerLink="/reports" routerLinkActive="active" class="nav-item">
-          <span class="nav-icon">📈</span>
-          <span class="nav-label">Reports</span>
+        <a routerLink="/reports" routerLinkActive="active-link" class="nav-anchor">
+          <span class="icon-slot">📈</span>
+          <span class="label-slot">Reports</span>
         </a>
-        <a routerLink="/settings" routerLinkActive="active" class="nav-item">
-          <span class="nav-icon">⚙️</span>
-          <span class="nav-label">Settings</span>
+
+        <a routerLink="/support" routerLinkActive="active-link" class="nav-anchor">
+          <span class="icon-slot">💬</span>
+          <span class="label-slot">Support</span>
+        </a>
+
+        <a routerLink="/settings" routerLinkActive="active-link" class="nav-anchor">
+          <span class="icon-slot">⚙️</span>
+          <span class="label-slot">Settings</span>
         </a>
       </nav>
-      <div class="sidebar-footer">
-        <div class="version">v1.1.0</div>
-      </div>
+      
+      <footer class="version-container">
+        <code class="version-tag">v1.1.0</code>
+      </footer>
     </aside>
   `,
   styles: [`
-    .sidebar {
+    .sidebar-container {
       position: fixed;
       top: 60px;
       left: 0;
-      width: 220px;
+      width: 240px;
       height: calc(100vh - 60px);
-      background: #f7f9fc;
-      border-right: 1px solid #e8ecf0;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 20px 0;
-      z-index: 90;
+      box-sizing: border-box;
+      border-right: 1px solid;
+      z-index: 100;
     }
-    .sidebar-nav {
+
+    .nav-stack {
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      padding: 0 12px;
+      padding: 15px;
     }
-    .nav-item {
+
+    .nav-anchor {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 11px 14px;
-      border-radius: 8px;
+      padding: 12px;
       text-decoration: none;
-      color: #4a5568;
-      font-family: 'Georgia', serif;
-      font-size: 14px;
-      font-weight: 500;
-      transition: all 0.15s ease;
+      transition: opacity 0.2s;
     }
-    .nav-item:hover {
-      background: #edf2f7;
-      color: #1a2332;
+
+    .icon-slot {
+      width: 25px;
+      display: flex;
+      justify-content: center;
+      margin-right: 10px;
     }
-    .nav-item.active {
-      background: #1a2332;
-      color: #ffffff;
+
+    .label-slot {
+      flex-grow: 1;
     }
-    .nav-icon {
-      font-size: 16px;
-      width: 20px;
+
+    .version-container {
+      padding: 20px;
       text-align: center;
     }
-    .sidebar-footer {
-      padding: 0 26px;
+
+    .version-tag {
+      font-size: 0.8rem;
     }
-    .version {
-      font-size: 11px;
-      color: #a0aec0;
-      font-family: monospace;
+
+    /* Target class for active router state */
+    .active-link {
+      font-weight: bold;
     }
   `]
 })
