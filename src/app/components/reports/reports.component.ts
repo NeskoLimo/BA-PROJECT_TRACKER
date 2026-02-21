@@ -358,7 +358,7 @@ interface RegionSummary {
             <td><span class="action-tag" [ngClass]="'at-' + e.action.toLowerCase()">{{ e.action }}</span></td>
             <td class="td-name">{{ e.user }}</td>
             <td class="td-muted">{{ e.details }}</td>
-            <td class="td-mono td-muted">{{ e.id?.slice(0,8) ?? '—' }}</td>
+            <td class="td-mono td-muted">{{ e.id ? e.id.slice(0,8) : '—' }}</td>
           </tr>
         </tbody>
       </table>
@@ -393,7 +393,7 @@ interface RegionSummary {
             <span class="rk-stat-lbl">Active</span>
           </div>
           <div class="rk-stat">
-            <span class="rk-stat-val">{{ r.projectCount > 0 ? ((r.spent / r.budget)*100)|number:'1.0-0' : 0 }}%</span>
+            <span class="rk-stat-val">{{ getRegionUtil(r) }}%</span>
             <span class="rk-stat-lbl">Utilised</span>
           </div>
         </div>
@@ -487,14 +487,14 @@ interface RegionSummary {
               <td><span class="status-chip" [ngClass]="'sc-' + p.status.toLowerCase()">{{ p.status }}</span></td>
               <td class="td-mono">{{ p.startDate }}</td>
               <td class="td-mono">{{ p.projectedEndDate }}</td>
-              <td class="td-mono">{{ p.actualEndDate ?? '—' }}</td>
+              <td class="td-mono">{{ p.actualEndDate || '—' }}</td>
               <td class="td-num">{{ p.budget | number }}</td>
               <td class="td-center">
                 <span class="bool-chip" [class.bool-t]="p.hasAttachment" [class.bool-f]="!p.hasAttachment">
                   {{ p.hasAttachment ? 'true' : 'false' }}
                 </span>
               </td>
-              <td class="td-mono td-muted">{{ p.attachmentUrl ?? 'null' }}</td>
+              <td class="td-mono td-muted">{{ p.attachmentUrl || 'null' }}</td>
               <td class="td-num">{{ gov.getCalculatedProgress(p) }}</td>
             </tr>
           </tbody>
@@ -517,7 +517,7 @@ interface RegionSummary {
           </thead>
           <tbody>
             <tr *ngFor="let e of filteredRawAudit()">
-              <td class="td-mono raw-id">{{ e.id ?? '—' }}</td>
+              <td class="td-mono raw-id">{{ e.id || '—' }}</td>
               <td class="td-mono">{{ e.time.toISOString() }}</td>
               <td><span class="action-tag" [ngClass]="'at-' + e.action.toLowerCase()">{{ e.action }}</span></td>
               <td class="td-name">{{ e.user }}</td>
@@ -815,6 +815,7 @@ export class ReportsComponent implements OnInit {
 
   getSpent(p: Project):     number { return Math.round(p.budget * (this.gov.getCalculatedProgress(p) / 100)); }
   getRemaining(p: Project): number { return p.budget - this.getSpent(p); }
+  getRegionUtil(r: RegionSummary): string { return r.budget > 0 ? Math.round((r.spent / r.budget) * 100).toString() : '0'; }
   isOverdue(p: Project):    boolean {
     if (p.actualEndDate) return false;
     return new Date(p.projectedEndDate) < new Date() && p.status !== 'Closure';
