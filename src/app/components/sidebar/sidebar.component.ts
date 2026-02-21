@@ -6,95 +6,115 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   standalone: true,
   imports: [RouterLink, RouterLinkActive],
   template: `
-    <aside class="sidebar-container">
-      <nav class="nav-stack">
-        <a routerLink="/dashboard" routerLinkActive="active-link" class="nav-anchor">
-          <span class="icon-slot">🏠</span>
-          <span class="label-slot">Dashboard</span>
-        </a>
-        <a routerLink="/projects" routerLinkActive="active-link" class="nav-anchor">
-          <span class="icon-slot">📁</span>
-          <span class="label-slot">Projects</span>
-        </a>
-        
-        <a routerLink="/repository" routerLinkActive="active-link" class="nav-anchor">
-          <span class="icon-slot">📚</span>
-          <span class="label-slot">Repository</span>
-        </a>
-
-        <a routerLink="/reports" routerLinkActive="active-link" class="nav-anchor">
-          <span class="icon-slot">📈</span>
-          <span class="label-slot">Reports</span>
-        </a>
-
-        <a routerLink="/support" routerLinkActive="active-link" class="nav-anchor">
-          <span class="icon-slot">💬</span>
-          <span class="label-slot">Support</span>
-        </a>
-
-        <a routerLink="/settings" routerLinkActive="active-link" class="nav-anchor">
-          <span class="icon-slot">⚙️</span>
-          <span class="label-slot">Settings</span>
-        </a>
-      </nav>
-      
-      <footer class="version-container">
-        <code class="version-tag">v1.1.0</code>
-      </footer>
+    <aside class="sidebar">
+      <div class="nav-container">
+        <nav class="nav-list">
+          <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">
+            <span class="icon">🏠</span>
+            <span class="label">Dashboard</span>
+          </a>
+          <a routerLink="/projects" routerLinkActive="active" class="nav-link">
+            <span class="icon">📁</span>
+            <span class="label">Projects</span>
+          </a>
+          <a routerLink="/repository" routerLinkActive="active" class="nav-link">
+            <span class="icon">📚</span>
+          </a>
+          <a routerLink="/reports" routerLinkActive="active" class="nav-link">
+            <span class="icon">📈</span>
+            <span class="label">Reports</span>
+          </a>
+          
+          <div class="divider"></div>
+          
+          <a routerLink="/support" routerLinkActive="active" class="nav-link">
+            <span class="icon">💬</span>
+            <span class="label">Support & AI</span>
+          </a>
+          <a routerLink="/settings" routerLinkActive="active" class="nav-link">
+            <span class="icon">⚙️</span>
+            <span class="label">Settings</span>
+          </a>
+        </nav>
+      </div>
+      <div class="sidebar-footer">
+        <span class="version-badge">v1.1.0</span>
+      </div>
     </aside>
   `,
   styles: [`
-    .sidebar-container {
+    .sidebar {
       position: fixed;
       top: 60px;
       left: 0;
       width: 240px;
       height: calc(100vh - 60px);
+      background: #1a1c1e; /* Deep obsidian for a sleek profile */
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      box-sizing: border-box;
-      border-right: 1px solid;
+      border-right: 1px solid #2d2f31;
       z-index: 100;
     }
 
-    .nav-stack {
+    .nav-container {
+      padding: 24px 16px;
+    }
+
+    .nav-list {
       display: flex;
       flex-direction: column;
-      padding: 15px;
+      gap: 4px;
     }
 
-    .nav-anchor {
+    .nav-link {
       display: flex;
       align-items: center;
-      padding: 12px;
+      gap: 12px;
+      padding: 10px 16px;
       text-decoration: none;
-      transition: opacity 0.2s;
+      color: #94a3b8; /* Muted slate */
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 8px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .icon-slot {
-      width: 25px;
+    .nav-link:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #f8fafc;
+    }
+
+    .nav-link.active {
+      background: #3b82f6; /* Modern electric blue accent */
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+    }
+
+    .icon {
+      font-size: 18px;
+      width: 20px;
       display: flex;
       justify-content: center;
-      margin-right: 10px;
     }
 
-    .label-slot {
-      flex-grow: 1;
+    .divider {
+      height: 1px;
+      background: #2d2f31;
+      margin: 16px 8px;
     }
 
-    .version-container {
-      padding: 20px;
-      text-align: center;
+    .sidebar-footer {
+      padding: 24px;
+      border-top: 1px solid #2d2f31;
     }
 
-    .version-tag {
-      font-size: 0.8rem;
-    }
-
-    /* Target class for active router state */
-    .active-link {
-      font-weight: bold;
+    .version-badge {
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
   `]
 })
