@@ -1,234 +1,234 @@
-import { Component, inject } from '@angular/core';
-import { DatePipe, NgClass }  from '@angular/common';
-import { GovernanceService, ActionType } from '../../services/governance.service';
+import { Injectable, signal, computed } from '@angular/core';
+import { BehaviorSubject } from 'rxjs';
 
-@Component({
-  selector:   'app-settings',
-  standalone: true,
-  imports:    [DatePipe, NgClass],
-  template: `
-    <div class="page">
+// ─── Models ────────────────────────────────────────────────────────────────────
 
-      <!-- ── Header ───────────────────────────────────────────────────────── -->
-      <header class="page-header">
-        <span class="eyebrow">System Administration</span>
-        <h1>Settings &amp; Audit Governance</h1>
-        <p class="subtitle">Manage permissions, policies, and review the full system audit trail.</p>
-      </header>
+export type ActionType    = 'SYSTEM' | 'UPLOAD' | 'DELETE' | 'EDIT' | 'LOGIN' | 'CREATE' | 'UPDATE';
+export type UserRole      = 'HOD' | 'ADMIN' | 'VIEWER' | 'EDITOR';
+export type ProjectPhase  = 'Initiation' | 'Planning' | 'Execution' | 'Closure';
+export type ProjectStatus = 'Active' | 'Critical' | 'Planning' | 'Closure';
 
-      <!-- ── Top grid ─────────────────────────────────────────────────────── -->
-      <div class="grid-2">
+export interface AuditEntry {
+  id?:     string;
+  time:    Date;
+  action:  ActionType;
+  user:    string;
+  details: string;
+}
 
-        <!-- User Permissions -->
-        <section class="card" aria-labelledby="perm-heading">
-          <h2 id="perm-heading" class="card-title">
-            <span class="card-icon" aria-hidden="true">👤</span>
-            User Permissions
-          </h2>
-          <div class="user-profile">
-            <div class="avatar" aria-hidden="true">{{ gov.userInitials() }}</div>
-            <div class="profile-info">
-              <strong class="u-name">{{ gov.currentUser().name }}</strong>
-              <span   class="u-role">{{ gov.currentUser().role }}</span>
-            </div>
-          </div>
-          <ul class="perm-list" aria-label="Permission list">
-            <li class="perm-item" [class.granted]="gov.canEdit()">
-              <span class="perm-indicator" aria-hidden="true">{{ gov.canEdit() ? '✓' : '✗' }}</span>
-              <span class="perm-label">Can Edit Workstreams</span>
-              <span class="perm-badge" [class.yes]="gov.canEdit()" [class.no]="!gov.canEdit()">
-                {{ gov.canEdit() ? 'Granted' : 'Denied' }}
-              </span>
-            </li>
-            <li class="perm-item" [class.granted]="gov.canDelete()">
-              <span class="perm-indicator" aria-hidden="true">{{ gov.canDelete() ? '✓' : '✗' }}</span>
-              <span class="perm-label">Can Delete Registry Entries</span>
-              <span class="perm-badge" [class.yes]="gov.canDelete()" [class.no]="!gov.canDelete()">
-                {{ gov.canDelete() ? 'Granted' : 'Denied' }}
-              </span>
-            </li>
-            <li class="perm-item" [class.granted]="gov.isAdmin()">
-              <span class="perm-indicator" aria-hidden="true">{{ gov.isAdmin() ? '✓' : '✗' }}</span>
-              <span class="perm-label">Access to Mass Upload Tools</span>
-              <span class="perm-badge" [class.yes]="gov.isAdmin()" [class.no]="!gov.isAdmin()">
-                {{ gov.isAdmin() ? 'Granted' : 'Denied' }}
-              </span>
-            </li>
-          </ul>
-        </section>
+export interface CurrentUser {
+  name: string;
+  role: UserRole;
+}
 
-        <!-- Policy Enforcement -->
-        <section class="card" aria-labelledby="policy-heading">
-          <h2 id="policy-heading" class="card-title">
-            <span class="card-icon" aria-hidden="true">🛡</span>
-            Active Policy Enforcement
-          </h2>
-          <dl class="policy-list">
-            <div class="policy-row">
-              <dt class="p-label">Max File Size</dt>
-              <dd class="p-value">{{ gov.policy().maxFileSizeMb }} MB</dd>
-            </div>
-            <div class="policy-row">
-              <dt class="p-label">Allowed Formats</dt>
-              <dd class="p-value">{{ gov.policy().allowedFormats.join(', ') }}</dd>
-            </div>
-            <div class="policy-row">
-              <dt class="p-label">Phase-Gate Lock</dt>
-              <dd class="p-value">
-                <span class="status-pill"
-                      [class.on]="gov.policy().phaseGateLock"
-                      [class.off]="!gov.policy().phaseGateLock">
-                  {{ gov.policy().phaseGateLock ? '● Enabled' : '○ Disabled' }}
-                </span>
-              </dd>
-            </div>
-          </dl>
-          <div class="policy-note">
-            Policy changes require an Admin approval cycle before taking effect.
-          </div>
-        </section>
-      </div>
+export interface PolicyConfig {
+  maxFileSizeMb:    number;
+  allowedFormats:   string[];
+  phaseGateLock:    boolean;
+}
 
-      <!-- ── Audit Trail ───────────────────────────────────────────────────── -->
-      <section class="card audit-card" aria-labelledby="audit-heading">
-        <div class="audit-header">
-          <div>
-            <h2 id="audit-heading" class="card-title">
-              <span class="card-icon" aria-hidden="true">📋</span>
-              Governance Audit Trail
-            </h2>
-            <p class="audit-count">{{ gov.auditLog.length }} events recorded</p>
-          </div>
-          <button class="btn-export" (click)="exportLog()" aria-label="Export audit log as CSV">
-            <span aria-hidden="true">↓</span> Export CSV
-          </button>
-        </div>
+export interface Project {
+  id:               string;
+  name:             string;
+  owner:            string;
+  location:         string;
+  startDate:        string;
+  projectedEndDate: string;
+  actualEndDate?:   string;
+  phase:            ProjectPhase;
+  status:           ProjectStatus;
+  budget:           number;
+  hasAttachment:    boolean;
+  attachmentUrl?:   string;
+}
 
-        <div class="table-wrapper" role="region" aria-label="Audit log table" tabindex="0">
-          <table class="audit-table">
-            <thead>
-              <tr>
-                <th scope="col">Timestamp</th>
-                <th scope="col">Action</th>
-                <th scope="col">Operator</th>
-                <th scope="col">Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (entry of gov.auditLog; track entry.id) {
-                <tr class="audit-row">
-                  <td class="cell-time">
-                    <time [dateTime]="entry.time.toISOString()">
-                      {{ entry.time | date:'HH:mm:ss' }}
-                    </time>
-                  </td>
-                  <td>
-                    <span class="action-tag" [ngClass]="actionClass(entry.action)">
-                      {{ entry.action }}
-                    </span>
-                  </td>
-                  <td class="cell-user">{{ entry.user }}</td>
-                  <td class="cell-detail">{{ entry.details }}</td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="4" class="empty-state">No audit events recorded yet.</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </section>
+export interface Region {
+  name:         string;
+  currency:     string;
+  projectCount: number;
+  status:       'Active' | 'Inactive';
+}
 
-    </div>
-  `,
-  styles: [`
-    :host {
-      --ink-900:   #0A1628; --ink-700: #1E3A5F; --ink-500: #4A6FA5;
-      --ink-300:   #8FAFD4; --ink-100: #E8EFF7; --ink-050: #F4F7FB;
-      --accent:    #0057FF; --accent-lt: #E6EEFF;
-      --green:     #059669; --green-lt: #D1FAE5;
-      --red:       #DC2626; --red-lt:   #FEE2E2;
-      --amber:     #D97706; --amber-lt: #FEF3C7;
-      --sky:       #0284C7; --sky-lt:   #E0F2FE;
-      --violet:    #7C3AED; --violet-lt:#EDE9FE;
-      --radius: 10px;
-      --shadow: 0 1px 3px rgba(10,22,40,.08), 0 4px 16px rgba(10,22,40,.06);
-      --font:   'DM Sans', 'Helvetica Neue', sans-serif;
-      --mono:   'DM Mono', 'Fira Mono', monospace;
-      display: block; font-family: var(--font);
-    }
-    .page          { padding: 48px 40px; background: var(--ink-050); min-height: 100vh; }
-    .page-header   { margin-bottom: 36px; }
-    .eyebrow       { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); background: var(--accent-lt); padding: 4px 10px; border-radius: 4px; margin-bottom: 12px; }
-    h1             { font-size: 28px; font-weight: 800; color: var(--ink-900); margin: 0 0 6px; letter-spacing: -.5px; }
-    .subtitle      { font-size: 14px; color: var(--ink-500); margin: 0; }
-    .grid-2        { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-    .card          { background: #fff; border: 1px solid var(--ink-100); border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow); }
-    .card-title    { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--ink-700); text-transform: uppercase; letter-spacing: .8px; margin: 0 0 24px; }
-    .card-icon     { font-size: 16px; }
-    .user-profile  { display: flex; align-items: center; gap: 14px; padding-bottom: 20px; border-bottom: 1px solid var(--ink-100); margin-bottom: 20px; }
-    .avatar        { width: 48px; height: 48px; border-radius: 12px; background: var(--ink-900); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; letter-spacing: .5px; flex-shrink: 0; }
-    .u-name        { display: block; font-weight: 700; color: var(--ink-900); font-size: 15px; }
-    .u-role        { display: block; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-top: 2px; }
-    .perm-list     { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
-    .perm-item     { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: var(--ink-050); border: 1px solid transparent; }
-    .perm-item.granted { background: var(--green-lt); border-color: #A7F3D0; }
-    .perm-indicator { font-size: 13px; font-weight: 800; width: 18px; text-align: center; color: var(--ink-300); }
-    .perm-item.granted .perm-indicator { color: var(--green); }
-    .perm-label    { flex: 1; font-size: 13px; font-weight: 500; color: var(--ink-700); }
-    .perm-badge    { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; }
-    .perm-badge.yes { background: var(--green-lt); color: var(--green); }
-    .perm-badge.no  { background: var(--red-lt);   color: var(--red);   }
-    .policy-list   { margin: 0 0 16px; padding: 0; }
-    .policy-row    { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--ink-100); }
-    .policy-row:last-child { border-bottom: none; }
-    .p-label       { font-size: 13px; color: var(--ink-500); font-weight: 500; }
-    .p-value       { font-size: 13px; color: var(--ink-900); font-weight: 600; }
-    .status-pill   { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
-    .status-pill.on  { background: var(--green-lt); color: var(--green); }
-    .status-pill.off { background: var(--red-lt);   color: var(--red);   }
-    .policy-note   { font-size: 11px; color: var(--ink-300); background: var(--ink-050); border-radius: 6px; padding: 10px 12px; line-height: 1.5; }
-    .audit-card    { }
-    .audit-header  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-    .audit-count   { font-size: 12px; color: var(--ink-300); margin: 4px 0 0; }
-    .btn-export    { display: flex; align-items: center; gap: 6px; background: var(--ink-900); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 12px; font-weight: 700; font-family: var(--font); letter-spacing: .5px; cursor: pointer; }
-    .btn-export:hover { background: var(--ink-700); }
-    .table-wrapper { overflow-x: auto; border-radius: 8px; border: 1px solid var(--ink-100); }
-    .audit-table   { width: 100%; border-collapse: collapse; }
-    .audit-table th { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-300); background: var(--ink-050); padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--ink-100); }
-    .audit-table td { padding: 13px 16px; border-bottom: 1px solid var(--ink-100); vertical-align: middle; }
-    .audit-row:last-child td { border-bottom: none; }
-    .audit-row:hover td { background: var(--ink-050); }
-    .cell-time     { font-family: var(--mono); font-size: 12px; color: var(--ink-500); white-space: nowrap; }
-    .cell-user     { font-size: 13px; font-weight: 600; color: var(--ink-700); white-space: nowrap; }
-    .cell-detail   { font-size: 13px; color: var(--ink-500); }
-    .action-tag    { display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; }
-    .tag-system  { background: var(--sky-lt);    color: var(--sky);    }
-    .tag-upload  { background: var(--green-lt);  color: var(--green);  }
-    .tag-delete  { background: var(--red-lt);    color: var(--red);    }
-    .tag-edit    { background: var(--amber-lt);  color: var(--amber);  }
-    .tag-login   { background: var(--violet-lt); color: var(--violet); }
-    .tag-create  { background: var(--green-lt);  color: var(--green);  }
-    .tag-update  { background: var(--sky-lt);    color: var(--sky);    }
-    .empty-state { text-align: center; padding: 48px; color: var(--ink-300); font-size: 14px; }
-    @media (max-width: 768px) { .page { padding: 24px 16px; } .grid-2 { grid-template-columns: 1fr; } }
-  `]
-})
-export class SettingsComponent {
-  protected readonly gov = inject(GovernanceService);
+export interface ValidationResult {
+  valid:  boolean;
+  error?: string;
+}
 
-  private readonly ACTION_CLASS: Record<string, string> = {
-    SYSTEM: 'tag-system', UPLOAD: 'tag-upload', DELETE: 'tag-delete',
-    EDIT:   'tag-edit',   LOGIN:  'tag-login',  CREATE: 'tag-create',
-    UPDATE: 'tag-update',
-  };
+export interface MasterPM {
+  id:             string;
+  name:           string;
+  department:     string;
+  activeProjects: number;
+  rate:           number;
+  lastDelivery:   string;
+}
 
-  actionClass(action: ActionType): string {
-    return this.ACTION_CLASS[action] ?? 'tag-system';
+// ─── Permission matrix ────────────────────────────────────────────────────────
+
+const ROLE_PERMISSIONS: Record<UserRole, { edit: boolean; delete: boolean; admin: boolean }> = {
+  HOD:    { edit: true,  delete: true,  admin: true  },
+  ADMIN:  { edit: true,  delete: true,  admin: true  },
+  EDITOR: { edit: true,  delete: false, admin: false },
+  VIEWER: { edit: false, delete: false, admin: false },
+};
+
+// ─── Service ──────────────────────────────────────────────────────────────────
+
+@Injectable({ providedIn: 'root' })
+export class GovernanceService {
+
+  // ── Private signal state ───────────────────────────────────────────────────
+
+  private readonly _currentUser = signal<CurrentUser>({ name: 'Dr. Amara Osei', role: 'HOD' });
+  private readonly _auditLog    = signal<AuditEntry[]>(this.seedLog());
+  private readonly _projects    = signal<Project[]>(this.seedProjects());
+
+  readonly policy = signal<PolicyConfig>({
+    maxFileSizeMb:  25,
+    allowedFormats: ['PDF', 'DOC', 'DOCX'],
+    phaseGateLock:  true,
+  });
+
+  // ── RxJS observable (dashboard subscribe() pattern) ───────────────────────
+
+  readonly masterPMs$ = new BehaviorSubject<MasterPM[]>([
+    { id: 'PM-01', name: 'Alice M.',  department: 'IT & Systems',     activeProjects: 3, rate: 94, lastDelivery: '14 Feb 2026' },
+    { id: 'PM-02', name: 'James K.',  department: 'Infrastructure',   activeProjects: 2, rate: 72, lastDelivery: '01 Feb 2026' },
+    { id: 'PM-03', name: 'Kwame M.', department: 'Procurement',      activeProjects: 3, rate: 88, lastDelivery: '20 Jan 2026' },
+    { id: 'PM-04', name: 'Nadia T.', department: 'Fleet & Logistics', activeProjects: 1, rate: 65, lastDelivery: '10 Dec 2025' },
+  ]);
+
+  // ── Derived permissions ────────────────────────────────────────────────────
+
+  readonly canEdit      = computed(() => ROLE_PERMISSIONS[this._currentUser().role].edit);
+  readonly canDelete    = computed(() => ROLE_PERMISSIONS[this._currentUser().role].delete);
+  readonly isAdmin      = computed(() => ROLE_PERMISSIONS[this._currentUser().role].admin);
+  readonly userInitials = computed(() =>
+    this._currentUser().name.split(' ').map(w => w[0]).slice(0, 3).join('').toUpperCase()
+  );
+
+  // ── Public signal accessor (settings component uses currentUser()) ─────────
+
+  readonly currentUser = this._currentUser.asReadonly();
+
+  // ── Plain-array getters (legacy *ngFor / .filter() / .find() compat) ──────
+
+  get projects(): Project[] {
+    return this._projects();
   }
 
-  exportLog(): void {
-    this.gov.exportAsCsv();
+  get auditLog(): AuditEntry[] {
+    const arr = [...this._auditLog()];
+    (arr as any).unshift = (...items: AuditEntry[]) => {
+      const stamped = items.map(e => ({ id: crypto.randomUUID(), ...e }));
+      this._auditLog.update(log => [...stamped, ...log]);
+      return this._auditLog().length;
+    };
+    return arr;
+  }
+
+  get masterRegions(): Region[] {
+    const list = this._projects();
+    return [
+      { name: 'East Africa',     currency: 'KES', status: 'Active',   projectCount: list.filter(p => /kenya|nairobi|mombasa/i.test(p.location)).length || 4 },
+      { name: 'West Africa',     currency: 'GHS', status: 'Active',   projectCount: list.filter(p => /ghana|accra/i.test(p.location)).length || 3 },
+      { name: 'Southern Africa', currency: 'ZAR', status: 'Active',   projectCount: list.filter(p => /south africa|cape town/i.test(p.location)).length || 5 },
+      { name: 'North Africa',    currency: 'EGP', status: 'Inactive', projectCount: 2 },
+    ];
+  }
+
+  // ── Project mutations ──────────────────────────────────────────────────────
+
+  updateProject(updated: Project): void {
+    this._projects.update(list => list.map(p => p.id === updated.id ? { ...updated } : p));
+    this.logAction('EDIT', `Updated project: ${updated.name}`);
+  }
+
+  deleteProject(id: string): void {
+    const p = this._projects().find(p => p.id === id);
+    this._projects.update(list => list.filter(p => p.id !== id));
+    if (p) this.logAction('DELETE', `Deleted project: ${p.name} (${id})`);
+  }
+
+  // ── Business logic ─────────────────────────────────────────────────────────
+
+  getCalculatedProgress(p: Project): number {
+    const start = new Date(p.startDate).getTime();
+    const end   = new Date(p.projectedEndDate).getTime();
+    const now   = p.actualEndDate ? new Date(p.actualEndDate).getTime() : Date.now();
+    const total = end - start;
+    if (total <= 0) return 100;
+    return Math.min(100, Math.max(0, Math.round(((now - start) / total) * 100)));
+  }
+
+  validateAttachment(file: File): ValidationResult {
+    const maxBytes = this.policy().maxFileSizeMb * 1024 * 1024;
+    const allowed  = this.policy().allowedFormats.map(f => `.${f.toLowerCase()}`);
+    const ext      = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!allowed.includes(ext))
+      return { valid: false, error: `File type not allowed. Use: ${this.policy().allowedFormats.join(', ')}` };
+    if (file.size > maxBytes)
+      return { valid: false, error: `File exceeds ${this.policy().maxFileSizeMb} MB limit.` };
+    return { valid: true };
+  }
+
+  logUpload(projectName: string, fileName: string): void {
+    this.logAction('UPLOAD', `Attached "${fileName}" to project: ${projectName}`);
+  }
+
+  // ── Audit ──────────────────────────────────────────────────────────────────
+
+  logAction(action: ActionType, details: string): void {
+    this._auditLog.update(log => [{
+      id: crypto.randomUUID(), time: new Date(),
+      action, user: this._currentUser().name, details,
+    }, ...log]);
+  }
+
+  exportAsCsv(): void {
+    const headers = ['Timestamp', 'Action', 'Operator', 'Details'];
+    const rows    = this._auditLog().map(e => [
+      e.time.toISOString(), e.action,
+      `"${e.user}"`, `"${e.details.replace(/"/g, '""')}"`,
+    ]);
+    const csv    = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob   = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url    = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    this.logAction('SYSTEM', 'Audit log exported as CSV');
+  }
+
+  // ── Seed data ──────────────────────────────────────────────────────────────
+
+  private seedLog(): AuditEntry[] {
+    const b = Date.now();
+    return [
+      { id: '1', time: new Date(b - 120_000), action: 'LOGIN',  user: 'Dr. Amara Osei', details: 'Session started from 196.201.xx.xx'        },
+      { id: '2', time: new Date(b -  90_000), action: 'UPLOAD', user: 'Dr. Amara Osei', details: 'Uploaded Q3-Budget-Final.pdf (18.2 MB)'     },
+      { id: '3', time: new Date(b -  60_000), action: 'EDIT',   user: 'Kwame Mensah',   details: 'Modified workstream: Procurement Reform'    },
+      { id: '4', time: new Date(b -  30_000), action: 'DELETE', user: 'Dr. Amara Osei', details: 'Removed registry entry #REG-0042'           },
+      { id: '5', time: new Date(b -  10_000), action: 'SYSTEM', user: 'System',          details: 'Phase-gate lock applied to WS-07'           },
+    ];
+  }
+
+  private seedProjects(): Project[] {
+    return [
+      { id: 'PRJ-101', name: 'ERP System Migration',  owner: 'Alice M.',  location: 'Nairobi, Kenya',
+        startDate: '2025-01-15', projectedEndDate: '2026-06-30',
+        phase: 'Execution', status: 'Active',   budget: 1_200_000, hasAttachment: true,  attachmentUrl: 'erp-scope-v2.pdf' },
+      { id: 'PRJ-102', name: 'Warehouse Expansion',   owner: 'James K.',  location: 'Mombasa, Kenya',
+        startDate: '2025-03-01', projectedEndDate: '2026-03-31',
+        phase: 'Planning',  status: 'Critical', budget: 850_000,   hasAttachment: false },
+      { id: 'PRJ-103', name: 'Procurement Reform',    owner: 'Kwame M.', location: 'Accra, Ghana',
+        startDate: '2025-06-01', projectedEndDate: '2026-12-31',
+        phase: 'Initiation', status: 'Planning', budget: 420_000,  hasAttachment: false },
+      { id: 'PRJ-104', name: 'Fleet Electrification', owner: 'Nadia T.', location: 'Cape Town, SA',
+        startDate: '2024-09-01', projectedEndDate: '2025-12-31', actualEndDate: '2025-11-15',
+        phase: 'Closure', status: 'Closure', budget: 2_100_000, hasAttachment: true, attachmentUrl: 'fleet-scope-final.docx' },
+    ];
   }
 }
