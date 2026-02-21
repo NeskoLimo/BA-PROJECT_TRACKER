@@ -119,7 +119,7 @@ interface RegionSummary {
     <div class="filter-bar">
       <div class="fb-group">
         <label>Status</label>
-        <select [(ngModel)]="perfStatus">
+        <select [(ngModel)]="perfStatus" (ngModelChange)="perfPage = 1">
           <option value="">All Statuses</option>
           <option>Active</option><option>Critical</option>
           <option>Planning</option><option>Closure</option>
@@ -127,10 +127,17 @@ interface RegionSummary {
       </div>
       <div class="fb-group">
         <label>Phase</label>
-        <select [(ngModel)]="perfPhase">
+        <select [(ngModel)]="perfPhase" (ngModelChange)="perfPage = 1">
           <option value="">All Phases</option>
           <option>Initiation</option><option>Planning</option>
           <option>Execution</option><option>Closure</option>
+        </select>
+      </div>
+      <div class="fb-group">
+        <label>Country</label>
+        <select [(ngModel)]="perfCountry" (ngModelChange)="perfPage = 1">
+          <option value="">All Countries</option>
+          <option *ngFor="let c of countries" [value]="c">{{ c }}</option>
         </select>
       </div>
       <div class="fb-group">
@@ -142,7 +149,15 @@ interface RegionSummary {
           <option value="status">Status</option>
         </select>
       </div>
-      <div class="fb-count">{{ filteredProjects().length }} project{{ filteredProjects().length !== 1 ? 's' : '' }}</div>
+      <div class="fb-group">
+        <label>Per page</label>
+        <select [(ngModel)]="perfPageSize" (ngModelChange)="perfPage = 1">
+          <option [value]="5">5</option>
+          <option [value]="10">10</option>
+          <option [value]="25">25</option>
+        </select>
+      </div>
+      <div class="fb-count">{{ allFilteredProjects().length }} project{{ allFilteredProjects().length !== 1 ? 's' : '' }}</div>
       <button class="btn-sm-exp" (click)="exportProjectsCsv()">↓ CSV</button>
     </div>
 
@@ -163,7 +178,7 @@ interface RegionSummary {
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let p of filteredProjects()" [class.row-critical]="p.status === 'Critical'">
+          <tr *ngFor="let p of pagedProjects()" [class.row-critical]="p.status === 'Critical'">
             <td class="td-name">{{ p.name }}</td>
             <td class="td-muted">{{ p.owner }}</td>
             <td class="td-muted">{{ p.location }}</td>
@@ -192,7 +207,18 @@ interface RegionSummary {
           </tr>
         </tbody>
       </table>
-      <div class="empty-row" *ngIf="filteredProjects().length === 0">No projects match the selected filters.</div>
+      <div class="empty-row" *ngIf="allFilteredProjects().length === 0">No projects match the selected filters.</div>
+      <!-- Pagination -->
+      <div class="pagination" *ngIf="totalPages() > 1">
+        <button class="pg-btn" [disabled]="perfPage === 1" (click)="perfPage = 1">«</button>
+        <button class="pg-btn" [disabled]="perfPage === 1" (click)="perfPage = perfPage - 1">‹</button>
+        <button class="pg-btn pg-num" *ngFor="let p of pageNumbers()"
+                [class.pg-active]="p === perfPage"
+                (click)="perfPage = p">{{ p }}</button>
+        <button class="pg-btn" [disabled]="perfPage === totalPages()" (click)="perfPage = perfPage + 1">›</button>
+        <button class="pg-btn" [disabled]="perfPage === totalPages()" (click)="perfPage = totalPages()">»</button>
+        <span class="pg-info">Page {{ perfPage }} of {{ totalPages() }} · {{ allFilteredProjects().length }} records</span>
+      </div>
     </div>
 
     <!-- Summary footer -->
@@ -572,16 +598,24 @@ interface RegionSummary {
     h1          { font-family: var(--font-d); font-size: 26px; font-weight: 700; color: var(--navy); margin: 0 0 4px; }
     .sub        { font-size: 12px; color: var(--muted); margin: 0; }
     .hdr-actions { display: flex; gap: 10px; align-items: center; }
-    .btn-export { padding: 9px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
-    .btn-export:hover { background: #f1f5f9; }
-    .btn-primary { background: var(--navy); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font-b); }
+    .btn-export {
+      padding: 9px 16px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2);
+      cursor: pointer; font-family: var(--font-b); transition: background .15s, border-color .15s;
+    }
+    .btn-export:hover { background: var(--bg); border-color: #94a3b8; }
+    .btn-primary {
+      background: var(--navy); color: #fff; border: none; padding: 10px 18px;
+      border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+      font-family: var(--font-b); transition: background .15s;
+    }
     .btn-primary:hover { background: #0a2a50; }
 
     /* Tabs */
     .tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 6px; width: fit-content; flex-wrap: wrap; }
-    .tab  { padding: 8px 16px; border: none; background: none; border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all .15s; white-space: nowrap; }
+    .tab  { padding: 8px 16px; border: none; background: none; border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all .15s; white-space: nowrap; font-family: var(--font-b); }
     .tab.active { background: var(--navy); color: #fff; }
-    .tab:hover:not(.active) { background: #f1f5f9; }
+    .tab:hover:not(.active) { background: var(--bg); color: var(--ink-2); }
 
     .tab-body { display: flex; flex-direction: column; gap: 16px; }
 
@@ -612,7 +646,7 @@ interface RegionSummary {
     .status-bars { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; }
     .sb-row   { display: flex; align-items: center; gap: 10px; }
     .sb-label { font-size: 12px; font-weight: 600; color: var(--ink-2); width: 80px; flex-shrink: 0; }
-    .sb-track { flex: 1; height: 10px; background: #f1f5f9; border-radius: 5px; overflow: hidden; }
+    .sb-track { flex: 1; height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; }
     .sb-fill  { height: 100%; border-radius: 5px; transition: width .7s ease; }
     .sb-count { font-size: 12px; font-weight: 700; color: var(--ink); width: 60px; text-align: right; }
     .sb-pct   { font-weight: 400; color: var(--muted); font-size: 11px; }
@@ -636,20 +670,33 @@ interface RegionSummary {
     .filter-bar { display: flex; align-items: flex-end; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 18px; flex-wrap: wrap; }
     .fb-group   { display: flex; flex-direction: column; gap: 4px; }
     .fb-group label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-    .fb-group select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; color: var(--ink); outline: none; background: #f8fafc; }
-    .fb-group select:focus { border-color: var(--blue); }
+    .fb-group select {
+      padding: 7px 32px 7px 10px; border: 1px solid var(--border); border-radius: 7px;
+      font-size: 13px; color: var(--ink); outline: none; background: var(--bg);
+      font-family: var(--font-b); cursor: pointer; transition: border-color .15s, box-shadow .15s, background .15s;
+      appearance: none; -webkit-appearance: none; min-width: 130px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center;
+    }
+    .fb-group select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,87,255,.1); background: var(--surface); }
+    .fb-group select:hover:not(:focus) { border-color: #94a3b8; }
     .fb-count   { font-size: 12px; font-weight: 700; color: var(--muted); margin-left: auto; align-self: center; }
-    .btn-sm-exp { padding: 7px 13px; background: var(--navy); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .btn-sm-exp {
+      padding: 7px 13px; background: var(--navy); color: #fff; border: none;
+      border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer;
+      font-family: var(--font-b); transition: background .15s;
+    }
+    .btn-sm-exp:hover { background: #0a2a50; }
 
     /* Data table */
     .data-table  { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .data-table th { padding: 10px 14px; font-size: 9px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; border-bottom: 2px solid var(--border); text-align: left; background: #f8fafc; cursor: pointer; white-space: nowrap; }
-    .data-table th.sorted { color: var(--blue); }
-    .data-table td { padding: 11px 14px; border-bottom: 1px solid #f5f7fa; vertical-align: middle; }
+    .data-table th { padding: 10px 14px; font-size: 9px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; border-bottom: 2px solid var(--border); text-align: left; background: var(--bg); cursor: pointer; white-space: nowrap; font-family: var(--font-b); }
+    .data-table th.sorted { color: var(--blue); background: var(--blue-lt); }
+    .data-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     .data-table tr:last-child td { border-bottom: none; }
-    .data-table tr:hover td { background: #f8fafc; }
+    .data-table tr:hover td { background: var(--bg); }
     .row-critical td { background: #fff8f8; }
-    .tfoot-row td { background: #f8fafc !important; border-top: 2px solid var(--border); font-size: 13px; }
+    .tfoot-row td { background: var(--bg) !important; border-top: 2px solid var(--border); font-size: 13px; }
     .td-name  { font-weight: 700; color: var(--ink); }
     .td-muted { color: var(--muted); }
     .td-num   { font-family: var(--font-m); text-align: right; color: var(--ink-2); }
@@ -688,7 +735,7 @@ interface RegionSummary {
     .sc-row   { display: flex; align-items: center; gap: 12px; }
     .sc-label { font-size: 11px; font-weight: 600; color: var(--muted); width: 160px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sc-bars  { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-    .sc-track { height: 18px; background: #f1f5f9; border-radius: 5px; overflow: visible; position: relative; }
+    .sc-track { height: 18px; background: var(--bg); border-radius: 5px; overflow: visible; position: relative; }
     .sc-track-sm { height: 10px; }
     .sc-alloc { height: 100%; background: rgba(0,87,255,.18); border: 1.5px solid var(--blue); border-radius: 5px; display: flex; align-items: center; padding: 0 8px; min-width: 30px; }
     .sc-bar-lbl { font-size: 9px; font-weight: 700; color: var(--blue); white-space: nowrap; }
@@ -746,15 +793,16 @@ interface RegionSummary {
     .execution   { background: #ecfdf5; color: #059669; }
     .closure     { background: #e0f2fe; color: #0369a1; }
 
-    /* Raw data tab */
     .raw-toolbar   { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 18px; }
     .raw-tabs      { display: flex; gap: 6px; }
-    .raw-tab       { padding: 7px 16px; border: 1px solid var(--border); border-radius: 20px; background: #f8fafc; font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer; }
+    .raw-tab       { padding: 7px 16px; border: 1px solid var(--border); border-radius: 20px; background: var(--bg); font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer; font-family: var(--font-b); transition: background .15s, border-color .15s, color .15s; }
+    .raw-tab:hover:not(.on) { background: var(--surface); border-color: #94a3b8; color: var(--ink-2); }
     .raw-tab.on    { background: var(--navy); color: #fff; border-color: var(--navy); }
     .raw-actions   { display: flex; gap: 8px; align-items: center; }
-    .raw-search    { padding: 7px 12px; border: 1px solid var(--border); border-radius: 7px; font-size: 12px; outline: none; font-family: var(--font-b); width: 220px; }
-    .raw-search:focus { border-color: var(--blue); }
-    .raw-meta      { padding: 10px 14px; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border); background: #f8fafc; }
+    .raw-search    { padding: 7px 12px; border: 1px solid var(--border); border-radius: 7px; font-size: 12px; outline: none; font-family: var(--font-b); width: 220px; transition: border-color .15s, box-shadow .15s; color: var(--ink); background: var(--bg); }
+    .raw-search:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,87,255,.1); background: var(--surface); }
+    .raw-search::placeholder { color: var(--muted); }
+    .raw-meta      { padding: 10px 14px; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--bg); }
     .raw-schema    { font-family: var(--font-m); color: var(--blue); }
     .raw-scroll    { overflow-x: auto; }
     .raw-table th  { white-space: nowrap; font-family: var(--font-m); font-size: 9px; }
@@ -765,6 +813,14 @@ interface RegionSummary {
     .bool-f        { background: #fef2f2; color: #dc2626; }
     .json-panel    { }
     .json-pre      { background: #0f172a; color: #a5f3fc; font-family: var(--font-m); font-size: 11px; line-height: 1.7; padding: 18px; border-radius: 8px; overflow-x: auto; margin: 0; white-space: pre; }
+
+    .pagination { display: flex; align-items: center; gap: 4px; padding: 14px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .pg-btn     { min-width: 32px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--font-b); transition: background .12s, border-color .12s, color .12s; }
+    .pg-btn:hover:not([disabled]) { background: var(--bg); border-color: var(--blue); color: var(--blue); }
+    .pg-btn[disabled] { opacity: .35; cursor: not-allowed; }
+    .pg-num     { min-width: 32px; }
+    .pg-active  { background: var(--navy) !important; color: #fff !important; border-color: var(--navy) !important; }
+    .pg-info    { margin-left: 10px; font-size: 11px; color: var(--muted); }
 
     @media (max-width: 1100px) {
       .sum-kpi-grid, .budget-kpis { grid-template-columns: repeat(2, 1fr); }
@@ -781,6 +837,9 @@ export class ReportsComponent implements OnInit {
   perfStatus  = '';
   perfPhase   = '';
   perfSort    = 'name';
+  perfCountry = '';
+  perfPage    = 1;
+  perfPageSize = 5;
   auditAction = '';
   auditUser   = '';
   now         = new Date();
@@ -821,16 +880,50 @@ export class ReportsComponent implements OnInit {
     return new Date(p.projectedEndDate) < new Date() && p.status !== 'Closure';
   }
 
-  filteredProjects(): Project[] {
+  // Country list derived from project locations
+  get countries(): string[] {
+    const all = this.gov.projects.map((p: Project) => {
+      const parts = p.location.split(',');
+      return parts[parts.length - 1].trim();
+    });
+    return [...new Set(all)].sort();
+  }
+
+  // Full filtered list (used for count, export, and pagination math)
+  allFilteredProjects(): Project[] {
     let list = [...this.gov.projects];
-    if (this.perfStatus) list = list.filter(p => p.status === this.perfStatus);
-    if (this.perfPhase)  list = list.filter(p => p.phase  === this.perfPhase);
+    if (this.perfStatus)  list = list.filter(p => p.status === this.perfStatus);
+    if (this.perfPhase)   list = list.filter(p => p.phase  === this.perfPhase);
+    if (this.perfCountry) list = list.filter(p => p.location.includes(this.perfCountry));
     if (this.perfSort === 'progress') list.sort((a, b) => this.gov.getCalculatedProgress(b) - this.gov.getCalculatedProgress(a));
     else if (this.perfSort === 'budget') list.sort((a, b) => b.budget - a.budget);
     else if (this.perfSort === 'status') list.sort((a, b) => a.status.localeCompare(b.status));
     else list.sort((a, b) => a.name.localeCompare(b.name));
     return list;
   }
+
+  // Paginated slice shown in the table
+  pagedProjects(): Project[] {
+    const start = (this.perfPage - 1) * this.perfPageSize;
+    return this.allFilteredProjects().slice(start, start + this.perfPageSize);
+  }
+
+  totalPages(): number {
+    return Math.max(1, Math.ceil(this.allFilteredProjects().length / this.perfPageSize));
+  }
+
+  pageNumbers(): number[] {
+    const total  = this.totalPages();
+    const current = this.perfPage;
+    const delta  = 2;
+    const pages: number[] = [];
+    for (let i = Math.max(1, current - delta); i <= Math.min(total, current + delta); i++) {
+      pages.push(i);
+    }
+    return pages;
+  }
+
+  filteredProjects(): Project[] { return this.allFilteredProjects(); }
 
   filteredAuditLog(): AuditEntry[] {
     return this.gov.auditLog.filter((e: AuditEntry) => {
