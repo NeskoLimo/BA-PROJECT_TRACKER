@@ -149,14 +149,6 @@ interface RegionSummary {
           <option value="status">Status</option>
         </select>
       </div>
-      <div class="fb-group">
-        <label>Per page</label>
-        <select [(ngModel)]="perfPageSize" (ngModelChange)="perfPage = 1">
-          <option [value]="5">5</option>
-          <option [value]="10">10</option>
-          <option [value]="25">25</option>
-        </select>
-      </div>
       <div class="fb-count">{{ allFilteredProjects().length }} project{{ allFilteredProjects().length !== 1 ? 's' : '' }}</div>
       <button class="btn-sm-exp" (click)="exportProjectsCsv()">↓ CSV</button>
     </div>
@@ -209,15 +201,18 @@ interface RegionSummary {
       </table>
       <div class="empty-row" *ngIf="allFilteredProjects().length === 0">No projects match the selected filters.</div>
       <!-- Pagination -->
-      <div class="pagination" *ngIf="totalPages() > 1">
-        <button class="pg-btn" [disabled]="perfPage === 1" (click)="perfPage = 1">«</button>
-        <button class="pg-btn" [disabled]="perfPage === 1" (click)="perfPage = perfPage - 1">‹</button>
-        <button class="pg-btn pg-num" *ngFor="let p of pageNumbers()"
-                [class.pg-active]="p === perfPage"
-                (click)="perfPage = p">{{ p }}</button>
-        <button class="pg-btn" [disabled]="perfPage === totalPages()" (click)="perfPage = perfPage + 1">›</button>
-        <button class="pg-btn" [disabled]="perfPage === totalPages()" (click)="perfPage = totalPages()">»</button>
-        <span class="pg-info">Page {{ perfPage }} of {{ totalPages() }} · {{ allFilteredProjects().length }} records</span>
+      <div class="pagination">
+        <span class="pg-range">Showing {{ pageRangeStart() }}–{{ pageRangeEnd() }} of {{ allFilteredProjects().length }} records</span>
+        <div class="pg-controls" *ngIf="totalPages() > 1">
+          <button class="pg-btn" [disabled]="perfPage === 1" (click)="perfPage = 1" title="First page">«</button>
+          <button class="pg-btn" [disabled]="perfPage === 1" (click)="perfPage = perfPage - 1" title="Previous page">‹</button>
+          <button class="pg-btn pg-num" *ngFor="let p of pageNumbers()"
+                  [class.pg-active]="p === perfPage"
+                  (click)="perfPage = p">{{ p }}</button>
+          <button class="pg-btn" [disabled]="perfPage === totalPages()" (click)="perfPage = perfPage + 1" title="Next page">›</button>
+          <button class="pg-btn" [disabled]="perfPage === totalPages()" (click)="perfPage = totalPages()" title="Last page">»</button>
+          <span class="pg-info">Page {{ perfPage }} of {{ totalPages() }}</span>
+        </div>
       </div>
     </div>
 
@@ -671,14 +666,13 @@ interface RegionSummary {
     .fb-group   { display: flex; flex-direction: column; gap: 4px; }
     .fb-group label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
     .fb-group select {
-      padding: 7px 32px 7px 10px; border: 1px solid var(--border); border-radius: 7px;
-      font-size: 13px; color: var(--ink); outline: none; background: var(--bg);
-      font-family: var(--font-b); cursor: pointer; transition: border-color .15s, box-shadow .15s, background .15s;
-      appearance: none; -webkit-appearance: none; min-width: 130px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: right 10px center;
+      padding: 7px 12px; border: 1px solid var(--border); border-radius: 7px;
+      font-size: 13px; color: var(--ink); outline: none; background: var(--surface);
+      font-family: var(--font-b); cursor: pointer;
+      transition: border-color .15s, box-shadow .15s;
+      min-width: 130px;
     }
-    .fb-group select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,87,255,.1); background: var(--surface); }
+    .fb-group select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,87,255,.1); }
     .fb-group select:hover:not(:focus) { border-color: #94a3b8; }
     .fb-count   { font-size: 12px; font-weight: 700; color: var(--muted); margin-left: auto; align-self: center; }
     .btn-sm-exp {
@@ -814,13 +808,15 @@ interface RegionSummary {
     .json-panel    { }
     .json-pre      { background: #0f172a; color: #a5f3fc; font-family: var(--font-m); font-size: 11px; line-height: 1.7; padding: 18px; border-radius: 8px; overflow-x: auto; margin: 0; white-space: pre; }
 
-    .pagination { display: flex; align-items: center; gap: 4px; padding: 14px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
-    .pg-btn     { min-width: 32px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--font-b); transition: background .12s, border-color .12s, color .12s; }
-    .pg-btn:hover:not([disabled]) { background: var(--bg); border-color: var(--blue); color: var(--blue); }
+    .pagination   { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 10px; background: var(--bg); border-radius: 0 0 var(--r) var(--r); }
+    .pg-range     { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .pg-controls  { display: flex; align-items: center; gap: 4px; }
+    .pg-btn       { min-width: 34px; height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--font-b); transition: background .12s, border-color .12s, color .12s; }
+    .pg-btn:hover:not([disabled]) { background: var(--blue-lt); border-color: var(--blue); color: var(--blue); }
     .pg-btn[disabled] { opacity: .35; cursor: not-allowed; }
-    .pg-num     { min-width: 32px; }
-    .pg-active  { background: var(--navy) !important; color: #fff !important; border-color: var(--navy) !important; }
-    .pg-info    { margin-left: 10px; font-size: 11px; color: var(--muted); }
+    .pg-num       { min-width: 34px; }
+    .pg-active    { background: var(--navy) !important; color: #fff !important; border-color: var(--navy) !important; }
+    .pg-info      { margin-left: 8px; font-size: 11px; color: var(--muted); padding-left: 8px; border-left: 1px solid var(--border); }
 
     @media (max-width: 1100px) {
       .sum-kpi-grid, .budget-kpis { grid-template-columns: repeat(2, 1fr); }
@@ -838,8 +834,8 @@ export class ReportsComponent implements OnInit {
   perfPhase   = '';
   perfSort    = 'name';
   perfCountry = '';
-  perfPage    = 1;
-  perfPageSize = 5;
+  perfPage     = 1;
+  readonly perfPageSize = 5;
   auditAction = '';
   auditUser   = '';
   now         = new Date();
@@ -906,6 +902,14 @@ export class ReportsComponent implements OnInit {
   pagedProjects(): Project[] {
     const start = (this.perfPage - 1) * this.perfPageSize;
     return this.allFilteredProjects().slice(start, start + this.perfPageSize);
+  }
+
+  pageRangeStart(): number {
+    return Math.min((this.perfPage - 1) * this.perfPageSize + 1, this.allFilteredProjects().length);
+  }
+
+  pageRangeEnd(): number {
+    return Math.min(this.perfPage * this.perfPageSize, this.allFilteredProjects().length);
   }
 
   totalPages(): number {
