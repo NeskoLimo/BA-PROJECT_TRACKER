@@ -1,11 +1,11 @@
 import { Component, inject } from '@angular/core';
-import { DatePipe }          from '@angular/common';
+import { DatePipe, NgClass } from '@angular/common';
 import { GovernanceService, ActionType } from '../../services/governance.service';
 
 @Component({
   selector:    'app-settings',
   standalone:  true,
-  imports:     [DatePipe],
+  imports:     [DatePipe, NgClass],
   template: `
     <div class="page">
 
@@ -101,7 +101,7 @@ import { GovernanceService, ActionType } from '../../services/governance.service
               <span class="card-icon" aria-hidden="true">📋</span>
               Governance Audit Trail
             </h2>
-            <p class="audit-count">{{ gov.auditLog().length }} events recorded</p>
+            <p class="audit-count">{{ gov.auditLog.length }} events recorded</p>
           </div>
           <button class="btn-export"
                   (click)="exportLog()"
@@ -121,7 +121,7 @@ import { GovernanceService, ActionType } from '../../services/governance.service
               </tr>
             </thead>
             <tbody>
-              @for (entry of gov.auditLog(); track entry.id) {
+              @for (entry of gov.auditLog; track entry.id) {
                 <tr class="audit-row">
                   <td class="cell-time">
                     <time [dateTime]="entry.time.toISOString()">
