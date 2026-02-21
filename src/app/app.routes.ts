@@ -20,11 +20,15 @@ export const routes: Routes = [
     loadComponent: () => import('./components/reports/reports.component').then(m => m.ReportsComponent)
   },
   {
-    path: 'repository', // <--- New Route Added
+    path: 'repository',
     loadComponent: () => import('./components/repository/repository.component').then(m => m.RepositoryComponent)
   },
   {
     path: 'settings',
     loadComponent: () => import('./components/settings/settings.component').then(m => m.SettingsComponent)
+  },
+  {
+    path: 'support',
+    loadComponent: () => import('./components/support/support.component').then(m => m.SupportComponent)
   }
 ];
