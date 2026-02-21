@@ -55,11 +55,12 @@ export interface ValidationResult {
 }
 
 export interface MasterPM {
-  id:       string;
-  name:     string;
-  region:   string;
-  projects: number;
-  status:   'Active' | 'On Leave' | 'Inactive';
+  id:             string;
+  name:           string;
+  department:     string;
+  activeProjects: number;
+  rate:           number;
+  lastDelivery:   string;
 }
 
 // ─── Permission matrix ────────────────────────────────────────────────────────
@@ -91,11 +92,10 @@ export class GovernanceService {
   // ── RxJS observable for dashboard (legacy subscribe() pattern) ─────────────
 
   readonly masterPMs$ = new BehaviorSubject<MasterPM[]>([
-    { id: 'PM-01', name: 'Alice M.',   region: 'East Africa',     projects: 3, status: 'Active'   },
-    { id: 'PM-02', name: 'James K.',   region: 'East Africa',     projects: 2, status: 'Active'   },
-    { id: 'PM-03', name: 'Kwame M.',   region: 'West Africa',     projects: 3, status: 'Active'   },
-    { id: 'PM-04', name: 'Nadia T.',   region: 'Southern Africa', projects: 4, status: 'On Leave' },
-    { id: 'PM-05', name: 'Omar F.',    region: 'North Africa',    projects: 2, status: 'Inactive' },
+    { id: 'PM-01', name: 'Alice M.',  department: 'IT & Systems',    activeProjects: 3, rate: 94, lastDelivery: '14 Feb 2026' },
+    { id: 'PM-02', name: 'James K.',  department: 'Infrastructure',  activeProjects: 2, rate: 72, lastDelivery: '01 Feb 2026' },
+    { id: 'PM-03', name: 'Kwame M.', department: 'Procurement',     activeProjects: 3, rate: 88, lastDelivery: '20 Jan 2026' },
+    { id: 'PM-04', name: 'Nadia T.', department: 'Fleet & Logistics',activeProjects: 1, rate: 65, lastDelivery: '10 Dec 2025' },
   ]);
 
   // ── Derived permissions (signals) ─────────────────────────────────────────
