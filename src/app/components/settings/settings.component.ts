@@ -12,30 +12,30 @@ import { GovernanceService, Project, AuditEntry } from '../../services/governanc
 export class SettingsComponent implements OnInit {
   protected gov = inject(GovernanceService);
 
-  // --- UI State ---
+  // --- UI & Analytics State ---
   public toastMsg = signal<string>('');
   public toastErr = signal<boolean>(false);
   public searchQuery = signal<string>('');
+  
+  // Mocking pending requests structure for the build fix
+  public myPendingRequests = signal<{fieldLabel: string}[]>([]); 
 
-  // --- Analytics & Mass Upload State ---
-  // Signals to handle your mass upload templates and filters
-  public myPendingRequests = signal<any[]>([]); 
-
-  // --- Fixed: Computed signals to prevent NG5002 Parser Errors ---
+  // --- Fixed: Computed Signals for Template Logic ---
   
   /**
-   * Refined logic for line 144: Extracts labels for review
-   * This removes the .map() and arrow function from the template.
+   * Fixes NG5002: Moves array mapping out of the template.
+   * This provides a clean string of fields under review.
    */
   public pendingFieldsText = computed(() => {
     const requests = this.myPendingRequests();
-    if (!requests.length) return 'No pending updates';
-    return requests.map(r => r.fieldLabel).join(', ');
+    return requests.length > 0 
+      ? requests.map(r => r.fieldLabel).join(', ') 
+      : 'No pending changes';
   });
 
   /**
-   * Filtered Audit Log for the table at line 572
-   * Enables the search/filter criteria requested for analytics enrichment.
+   * Professional Portfolio Audit filtering.
+   * Leveraged for C-suite reporting and variance diagnostics.
    */
   public filteredAudit = computed(() => {
     const log = this.gov.auditLogSig();
@@ -43,40 +43,23 @@ export class SettingsComponent implements OnInit {
     if (!query) return log;
     return log.filter(e => 
       e.details.toLowerCase().includes(query) || 
-      e.user.toLowerCase().includes(query)
+      e.user.toLowerCase().includes(query) ||
+      e.action.toLowerCase().includes(query)
     );
   });
 
   constructor() {}
 
-  ngOnInit(): void {
-    // Initial data load if needed
-  }
+  ngOnInit(): void {}
 
-  // --- Methods ---
+  // --- Service Actions ---
 
-  /**
-   * Triggers the CSV Export for analytics.
-   * Leverages the service implementation that includes Start/End dates.
-   */
   public handleExport(): void {
     try {
       this.gov.exportAsCsv();
-      this.showToast('Export successful', false);
+      this.showToast('Analytics Exported Successfully', false);
     } catch (err) {
-      this.showToast('Export failed', true);
-    }
-  }
-
-  /**
-   * Mass Upload Trigger
-   */
-  public onTemplateUpload(event: Event): void {
-    const element = event.currentTarget as HTMLInputElement;
-    let fileList: FileList | null = element.files;
-    if (fileList) {
-      this.showToast(`Processing ${fileList[0].name}...`, false);
-      // Logic for parsing template and calling gov.uploadProjects()
+      this.showToast('Export Failed', true);
     }
   }
 
