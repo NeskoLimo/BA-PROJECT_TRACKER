@@ -1,4 +1,3 @@
-// src/app/services/governance.service.ts
 import { Injectable, signal, computed } from '@angular/core';
 
 export type ActionType = 'SYSTEM' | 'UPLOAD' | 'DELETE' | 'EDIT' | 'LOGIN' | 'CREATE' | 'UPDATE';
@@ -35,6 +34,12 @@ export interface User {
   avatar: string;
 }
 
+export interface GovernancePolicy {
+  allowedFormats: string[];
+  phaseGateLock: boolean;
+  maxUploadSize: number;
+}
+
 // ── SEED DATA ─────────────────────────────────────────────────────────────────
 const SEED_PROJECTS: Project[] = [
   {
@@ -46,7 +51,7 @@ const SEED_PROJECTS: Project[] = [
     status: 'Active',
     startDate: '2025-01-15',
     projectedEndDate: '2026-06-30',
-    budget: 1_200_000,
+    budget: 1200000,
     hasAttachment: true,
     attachmentUrl: 'https://example.com/erp-scope.pdf',
     scopeTag: 'erp-sc...',
@@ -60,7 +65,7 @@ const SEED_PROJECTS: Project[] = [
     status: 'Critical',
     startDate: '2025-03-01',
     projectedEndDate: '2026-03-31',
-    budget: 850_000,
+    budget: 850000,
     hasAttachment: true,
     attachmentUrl: 'https://example.com/warehouse-link',
     scopeTag: 'LINK',
@@ -74,7 +79,7 @@ const SEED_PROJECTS: Project[] = [
     status: 'Planning',
     startDate: '2025-06-01',
     projectedEndDate: '2026-12-31',
-    budget: 420_000,
+    budget: 420000,
     hasAttachment: true,
     attachmentUrl: 'https://example.com/proc-link',
     scopeTag: 'LINK',
@@ -89,12 +94,11 @@ const SEED_PROJECTS: Project[] = [
     startDate: '2024-08-01',
     projectedEndDate: '2026-02-28',
     actualEndDate: '2026-02-20',
-    budget: 2_100_000,
+    budget: 2100000,
     hasAttachment: false,
   },
 ];
 
-// ── USERS ─────────────────────────────────────────────────────────────────────
 const USERS: Record<string, User> = {
   HOD: { name: 'Head of Department', email: 'hod@organisation.ke', role: 'HOD',     avatar: 'H' },
   PM:  { name: 'Project Manager',    email: 'pm@organisation.ke',  role: 'PM',      avatar: 'P' },
@@ -108,36 +112,34 @@ export class GovernanceService {
   private _projects = signal<Project[]>(this.loadProjects());
   private _auditLog = signal<AuditEntry[]>(this.loadAudit());
   private _activeUser = signal<User>(USERS['HOD']);
+  
+  // Policy signal required by settings.component.ts
+  public policy = signal<GovernancePolicy>({
+    allowedFormats: ['PDF', 'XLSX', 'DOCX', 'CSV'],
+    phaseGateLock: true,
+    maxUploadSize: 50
+  });
 
   readonly projectsSig = this._projects.asReadonly();
   readonly auditLogSig = this._auditLog.asReadonly();
 
-  // Convenience getters so templates can use gov.projects / gov.auditLog
   get projects(): Project[]    { return this._projects(); }
   get auditLog(): AuditEntry[] { return this._auditLog(); }
 
   currentUser = this._activeUser.asReadonly();
 
+  // ── Computed Properties for Build Fixes ────────────────────────────────────
+  
+  // Required by support.component.ts
+  public isAdmin = computed(() => this._activeUser().role === 'HOD');
+
+  // Required by support.component.ts
+  public userInitials = computed(() => {
+    const name = this._activeUser().name;
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  });
+
   // ── Progress Calculation ──────────────────────────────────────────────────
-  /**
-   * TIME-BASED PROGRESS
-   *
-   * Logic:
-   *  1. If actualEndDate is set → 100%
-   *  2. If manualProgress is set → use that (allows override)
-   *  3. Otherwise → elapsed / total span, clamped 0–99
-   *
-   * "A project with a closer end date should show MORE progress"
-   *  because if today is near the end, the project has been running longer
-   *  relative to its total span.
-   *
-   *  progress = (today - startDate) / (endDate - startDate) × 100
-   *
-   *  We use actualEndDate if available, else projectedEndDate as the
-   *  denominator anchor. This means:
-   *   - Short-duration project near its end  → high %
-   *   - Long-duration project early in run   → low %
-   */
   getCalculatedProgress(p: Project): number {
     if (p.actualEndDate) return 100;
     if (p.manualProgress !== undefined && p.manualProgress !== null) {
@@ -154,11 +156,10 @@ export class GovernanceService {
     if (totalSpan <= 0) return 0;
 
     const raw = (elapsedSpan / totalSpan) * 100;
-    // Clamp: 0 minimum (not started yet), 99 maximum (only actualEndDate gives 100)
     return Math.max(0, Math.min(99, Math.round(raw)));
   }
 
-  // ── CRUD ──────────────────────────────────────────────────────────────────
+  // ── CRUD & Analytics ───────────────────────────────────────────────────────
 
   addProject(draft: Omit<Project, 'id'>): Project {
     const id  = 'PRJ-' + String(this._projects().length + 1).padStart(3, '0');
@@ -169,10 +170,6 @@ export class GovernanceService {
     return project;
   }
 
-  /**
-   * Update a project — called AFTER the user confirms the change dialogue.
-   * Records a detailed diff in the audit log.
-   */
   updateProject(id: string, changes: Partial<Project>): void {
     const before = this._projects().find(p => p.id === id);
     if (!before) return;
@@ -205,17 +202,43 @@ export class GovernanceService {
     this.log('DELETE', `Deleted project "${p?.name ?? id}" [${id}]`);
   }
 
+  /**
+   * Mass Upload Implementation
+   */
   uploadProjects(incoming: Project[]): void {
-    // Merge: update existing by id, append new
     const existing = new Map(this._projects().map(p => [p.id, p]));
     let created = 0, updated = 0;
     for (const p of incoming) {
-      if (existing.has(p.id)) { existing.set(p.id, { ...existing.get(p.id)!, ...p }); updated++; }
-      else                    { existing.set(p.id, p); created++; }
+      if (existing.has(p.id)) { 
+        existing.set(p.id, { ...existing.get(p.id)!, ...p }); 
+        updated++; 
+      } else { 
+        existing.set(p.id, p); 
+        created++; 
+      }
     }
     this._projects.set([...existing.values()]);
     this.persist();
     this.log('UPLOAD', `Bulk upload: ${created} created, ${updated} updated (${incoming.length} total records)`);
+  }
+
+  /**
+   * Analytics Export - Required by settings.component.ts
+   */
+  exportAsCsv(): void {
+    const data = this._projects();
+    const headers = 'ID,Name,Owner,Status,StartDate,ProjectedEnd,ActualEnd,Budget\n';
+    const csvContent = data.map(p => 
+      `${p.id},${p.name},${p.owner},${p.status},${p.startDate},${p.projectedEndDate},${p.actualEndDate || ''},${p.budget}`
+    ).join('\n');
+    
+    const blob = new Blob([headers + csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `project_analytics_${new Date().toISOString().split('T')[0]}.csv`);
+    a.click();
+    this.log('SYSTEM', 'Project analytics exported to CSV');
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -245,7 +268,7 @@ export class GovernanceService {
     this.persistAudit();
   }
 
-  // ── Persistence (localStorage) ────────────────────────────────────────────
+  // ── Persistence ───────────────────────────────────────────────────────────
   private loadProjects(): Project[] {
     try {
       const raw = localStorage.getItem('ba_projects');
@@ -267,7 +290,6 @@ export class GovernanceService {
 
   private persistAudit(): void {
     try {
-      // Keep last 500 entries in storage
       const trimmed = this._auditLog().slice(0, 500);
       localStorage.setItem('ba_audit', JSON.stringify(trimmed.map(e => ({ ...e, time: e.time.toISOString() }))));
     } catch {}
